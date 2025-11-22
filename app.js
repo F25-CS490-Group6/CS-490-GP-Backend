@@ -18,6 +18,7 @@ const serviceRoutes = require("./modules/services/routes");
 const notificationRoutes = require("./modules/notifications/routes");
 const messageRoutes = require("./modules/messages/routes");
 const reviewRoutes = require("./modules/reviews/routes");
+const staffPortalRoutes = require("./modules/staffportal/routes");
 // const subscriptionRoutes = require("./modules/subscriptions/routes"); // Disabled until payment implementation
 const { db, testConnection } = require("./config/database");
 
@@ -72,6 +73,7 @@ app.use("/api/services", serviceRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/staff-portal", staffPortalRoutes);
 // app.use("/api/subscriptions", subscriptionRoutes); // Disabled until payment implementation
 
 app.use((req, res) => {
