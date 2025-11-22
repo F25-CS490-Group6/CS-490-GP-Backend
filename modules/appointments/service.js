@@ -120,7 +120,7 @@ async function getAppointmentsByUser(userId) {
       a.scheduled_time,
       a.status,
       a.price,
-      s.salon_name AS salon_name,
+      s.name AS salon_name,
       GROUP_CONCAT(sv.custom_name SEPARATOR ', ') AS service_names,
       stf.staff_id,
       su.full_name AS staff_name
@@ -152,7 +152,7 @@ async function getAppointmentById(appointmentId) {
       a.status,
       a.price,
       a.notes,
-      s.salon_name AS salon_name,
+      s.name AS salon_name,
       cu.full_name AS customer_name,
       stf.staff_id,
       su.full_name AS staff_name
@@ -242,6 +242,25 @@ async function cancelAppointment(appointmentId) {
 }
 
 /**
+ * Delete appointment (permanently remove from database)
+ */
+async function deleteAppointment(appointmentId) {
+  // First delete related records in appointment_services
+  await db.query(
+    "DELETE FROM appointment_services WHERE appointment_id = ?",
+    [appointmentId]
+  );
+  
+  // Then delete the appointment itself
+  const sql = `
+    DELETE FROM appointments 
+    WHERE appointment_id = ?
+  `;
+  const [result] = await db.query(sql, [appointmentId]);
+  return result.affectedRows;
+}
+
+/**
  * Automatically cancel pending appointments that have been waiting >24h
  */
 async function expireStalePendingAppointments() {
@@ -307,6 +326,7 @@ module.exports = {
   getAppointmentsBySalon,
   updateAppointment,
   cancelAppointment,
+  deleteAppointment,
   expireStalePendingAppointments,
   addAppointmentServices,
   getAppointmentServices,
