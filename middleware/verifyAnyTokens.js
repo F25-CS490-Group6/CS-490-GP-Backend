@@ -34,9 +34,9 @@ exports.verifyAnyToken = async (req, res, next) => {
 
       const [rows] = await db.query(
         `
-        SELECT u.user_id, u.email, u.user_role, s.salon_id
+        SELECT u.user_id, u.email, u.user_role, u.salon_id, st.salon_id as staff_salon_id
         FROM users u
-        LEFT JOIN salons s ON s.owner_id = u.user_id
+        LEFT JOIN staff st ON st.user_id = u.user_id AND st.is_active = 1
         WHERE u.user_id = ?
         LIMIT 1
         `,
@@ -44,11 +44,14 @@ exports.verifyAnyToken = async (req, res, next) => {
       );
 
       const userRecord = rows[0] || {};
+      // For owners: use u.salon_id, for staff: use staff_salon_id, fallback to u.salon_id
+      const salonId = userRecord.staff_salon_id || userRecord.salon_id || decoded.salon_id || null;
+      
       req.user = {
         user_id: decoded.user_id,
         email: decoded.email,
         role: decoded.role,
-        salon_id: userRecord.salon_id || null,
+        salon_id: salonId,
       };
 
       return next();
@@ -64,9 +67,9 @@ exports.verifyAnyToken = async (req, res, next) => {
 
       const [rows] = await db.query(
         `
-        SELECT u.user_id, u.email, u.user_role, s.salon_id
+        SELECT u.user_id, u.email, u.user_role, u.salon_id, st.salon_id as staff_salon_id
         FROM users u
-        LEFT JOIN salons s ON s.owner_id = u.user_id
+        LEFT JOIN staff st ON st.user_id = u.user_id AND st.is_active = 1
         WHERE u.firebase_uid = ? OR LOWER(u.email) = LOWER(?)
         LIMIT 1
         `,
@@ -80,11 +83,14 @@ exports.verifyAnyToken = async (req, res, next) => {
       }
 
       const user = rows[0];
+      // For owners: use u.salon_id, for staff: use staff_salon_id, fallback to u.salon_id
+      const salonId = user.staff_salon_id || user.salon_id || null;
+      
       req.user = {
         user_id: user.user_id,
         email: user.email,
         role: user.user_role,
-        salon_id: user.salon_id || null,
+        salon_id: salonId,
       };
 
       return next();
