@@ -1,4 +1,4 @@
-const { query } = require("../../config/database");
+const { query, db } = require("../../config/database");
 const salonService = require("./service");
 
 //As a user, I want to browse available salons so that I can choose where to book
@@ -107,7 +107,40 @@ exports.getSalonServices = async (req, res) => {
   }
 };
 
-// Get services for a salon
+// Get services for a salon (public - for customer view)
+exports.getSalonServicesPublic = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+
+    const services = await query(
+      `
+      SELECT 
+        s.service_id,
+        s.custom_name,
+        s.price,
+        s.duration,
+        s.description,
+        c.name AS category_name
+      FROM services s
+      LEFT JOIN service_categories c ON s.category_id = c.category_id
+      WHERE s.salon_id = ? AND s.is_active = 1
+      ORDER BY c.name, s.custom_name
+      `,
+      [salon_id]
+    );
+
+    if (!services || services.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    return res.status(200).json(services);
+  } catch (error) {
+    console.error("getSalonServicesPublic error:", error);
+    return res.status(500).json({ error: "Failed to fetch salon services" });
+  }
+};
+
+// Get services for a salon (authenticated)
 exports.getSalonServices = async (req, res) => {
   try {
     const { salon_id } = req.params;
@@ -340,6 +373,14 @@ exports.createSalon = async (req, res) => {
         profilePicturePath,
       ]
     );
+    
+    const salonId = result.insertId;
+    
+    // Update users table to set salon_id for the owner
+    await query(
+      "UPDATE users SET salon_id = ? WHERE user_id = ?",
+      [salonId, userId]
+    );
 
     return res.status(201).json({
       message: "Salon registered successfully",
@@ -366,14 +407,211 @@ exports.createSalon = async (req, res) => {
   }
 };
 
-// Get salon by ID (for settings view)
+// Get salon by ID (public - for customer view)
+exports.getSalonByIdPublic = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    
+    if (!salon_id) {
+      return res.status(400).json({ error: "Salon ID is required" });
+    }
+    
+    console.log("Fetching public salon:", salon_id);
+
+    // Check which columns exist in the salons table
+    const [columns] = await db.query("SHOW COLUMNS FROM salons");
+    const columnNames = columns.map(col => col.Field);
+    const hasColumn = (colName) => columnNames.includes(colName);
+
+    // Build SELECT query with only existing columns
+    // Include owner_id for messaging functionality
+    const selectFields = ['salon_id', 'name', 'slug', 'address', 'city', 'phone', 'email', 'website', 'description', 'profile_picture', 'status', 'owner_id']
+      .filter(col => hasColumn(col))
+      .map(col => `s.${col}`)
+      .join(', ');
+
+    const salons = await query(
+      `SELECT ${selectFields}
+      FROM salons s 
+      WHERE s.salon_id = ? AND s.status = 'active'`,
+      [salon_id]
+    );
+
+    console.log("Query result:", salons?.length || 0, "salons found");
+
+    if (!salons || salons.length === 0) {
+      // Check if salon exists but is not active
+      const existingSalon = await query(
+        `SELECT salon_id, status FROM salons WHERE salon_id = ?`,
+        [salon_id]
+      );
+      
+      console.log("Existing salon check:", existingSalon?.length || 0, "found");
+      
+      if (existingSalon && existingSalon.length > 0) {
+        console.log("Salon exists but status is:", existingSalon[0].status);
+        return res.status(404).json({ 
+          error: "Salon not available",
+          message: `This salon exists but is currently ${existingSalon[0].status}. Only active salons are visible to customers.`
+        });
+      }
+      
+      console.log("Salon not found in database");
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    const salon = salons[0];
+    // owner_id is now included in the SELECT query above, so it should be in salon object
+
+    // Get all settings from salon_settings
+    const [settings] = await db.query(
+      `SELECT 
+        amenities, 
+        business_hours,
+        cancellation_policy,
+        require_deposit,
+        deposit_amount,
+        refund_policy,
+        late_arrival_policy,
+        no_show_policy
+      FROM salon_settings WHERE salon_id = ?`,
+      [salon_id]
+    );
+
+    let amenities = [];
+    let businessHours = null;
+    let bookingSettings = {
+      cancellationPolicy: null,
+      requireDeposit: false,
+      depositAmount: 0,
+      refundPolicy: null,
+      lateArrivalPolicy: null,
+      noShowPolicy: null,
+    };
+    
+    if (settings && settings.length > 0) {
+      const setting = settings[0];
+      
+      // Parse amenities - handle both JSON string and already parsed array
+      if (setting.amenities) {
+        if (typeof setting.amenities === 'string') {
+          try {
+            amenities = JSON.parse(setting.amenities);
+          } catch (e) {
+            amenities = [];
+          }
+        } else if (Array.isArray(setting.amenities)) {
+          amenities = setting.amenities;
+        } else {
+          amenities = [];
+        }
+      }
+      
+      // Parse business hours
+      if (setting.business_hours) {
+        try {
+          businessHours = JSON.parse(setting.business_hours);
+        } catch (e) {
+          businessHours = null;
+        }
+      }
+      
+      // Get booking settings
+      bookingSettings = {
+        cancellationPolicy: setting.cancellation_policy || null,
+        requireDeposit: setting.require_deposit === 1 || setting.require_deposit === true,
+        depositAmount: parseFloat(setting.deposit_amount) || 0,
+        refundPolicy: setting.refund_policy || null,
+        lateArrivalPolicy: setting.late_arrival_policy || null,
+        noShowPolicy: setting.no_show_policy || null,
+      };
+    }
+
+    return res.json({ 
+      ...salon, 
+      amenities, 
+      businessHours,
+      bookingSettings
+    });
+  } catch (error) {
+    console.error("Error fetching salon:", error);
+    res.status(500).json({ error: "Failed to fetch salon" });
+  }
+};
+
+// Get salon business hours (public - for customer view)
+exports.getSalonBusinessHoursPublic = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const businessHours = await salonService.getSalonBusinessHours(salon_id);
+    res.json({ businessHours });
+  } catch (error) {
+    console.error("Error fetching business hours:", error);
+    res.status(500).json({ error: "Failed to fetch business hours" });
+  }
+};
+
+// Get salon booking policy (public - for customer view)
+exports.getSalonBookingPolicyPublic = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const [settings] = await db.query(
+      `SELECT 
+        cancellation_policy,
+        require_deposit,
+        deposit_amount,
+        refund_policy,
+        late_arrival_policy,
+        no_show_policy
+      FROM salon_settings WHERE salon_id = ?`,
+      [salon_id]
+    );
+
+    if (!settings || settings.length === 0) {
+      return res.json({ 
+        cancellationPolicy: null,
+        requireDeposit: false,
+        depositAmount: 0,
+        refundPolicy: null,
+        lateArrivalPolicy: null,
+        noShowPolicy: null,
+      });
+    }
+
+    const setting = settings[0];
+    res.json({ 
+      cancellationPolicy: setting.cancellation_policy || null,
+      requireDeposit: setting.require_deposit === 1 || setting.require_deposit === true,
+      depositAmount: parseFloat(setting.deposit_amount) || 0,
+      refundPolicy: setting.refund_policy || null,
+      lateArrivalPolicy: setting.late_arrival_policy || null,
+      noShowPolicy: setting.no_show_policy || null,
+    });
+  } catch (error) {
+    console.error("Error fetching booking policy:", error);
+    res.status(500).json({ error: "Failed to fetch booking policy" });
+  }
+};
+
+// Get salon by ID (for settings view - requires auth)
 exports.getSalonById = async (req, res) => {
   try {
     const { salon_id } = req.params;
     const userId = req.user?.user_id;
 
+    // Check which columns exist in the salons table
+    const [columns] = await db.query("SHOW COLUMNS FROM salons");
+    const columnNames = columns.map(col => col.Field);
+    const hasColumn = (colName) => columnNames.includes(colName);
+
+    // Build SELECT query with only existing columns
+    const selectFields = ['salon_id', 'name', 'slug', 'address', 'city', 'phone', 'email', 'website', 'description', 'profile_picture', 'status', 'created_at', 'owner_id']
+      .filter(col => hasColumn(col))
+      .map(col => `s.${col}`)
+      .join(', ');
+
     const salons = await query(
-      "SELECT s.salon_id, s.name, s.slug, s.address, s.city, s.state, s.zip, s.country, s.phone, s.email, s.website, s.description, s.profile_picture, s.status, s.created_at, s.owner_id FROM salons s WHERE s.salon_id = ?",
+      `SELECT ${selectFields} FROM salons s WHERE s.salon_id = ?`,
       [salon_id]
     );
 
@@ -422,30 +660,58 @@ exports.updateSalon = async (req, res) => {
       city, 
       email, 
       website, 
-      description 
+      description
     } = req.body;
 
-    // Build update query dynamically based on provided fields
+    // Check which columns exist in the salons table
+    const [columns] = await db.query("SHOW COLUMNS FROM salons");
+    const columnNames = columns.map(col => col.Field);
+    const hasColumn = (colName) => columnNames.includes(colName);
+
+    // Build update query dynamically based on provided fields and existing columns
     const updates = [];
     const values = [];
 
-    if (name) {
+    // Helper function to check if a value should be updated
+    const shouldUpdate = (value) => {
+      return value !== undefined && value !== null && value !== '';
+    };
+
+    // Always update name if provided (required field)
+    if (shouldUpdate(name) && hasColumn('name')) {
       updates.push("name = ?");
       values.push(name);
-      // Update slug when name changes
-      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-      updates.push("slug = ?");
-      values.push(slug);
+      // Update slug when name changes (if slug column exists)
+      if (hasColumn('slug')) {
+        const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        updates.push("slug = ?");
+        values.push(slug);
+      }
     }
-    if (address !== undefined) { updates.push("address = ?"); values.push(address); }
-    if (city !== undefined) { updates.push("city = ?"); values.push(city); }
-    if (state !== undefined) { updates.push("state = ?"); values.push(state); }
-    if (zip !== undefined) { updates.push("zip = ?"); values.push(zip); }
-    if (country !== undefined) { updates.push("country = ?"); values.push(country); }
-    if (phone !== undefined) { updates.push("phone = ?"); values.push(phone); }
-    if (email !== undefined) { updates.push("email = ?"); values.push(email); }
-    if (website !== undefined) { updates.push("website = ?"); values.push(website); }
-    if (description !== undefined) { updates.push("description = ?"); values.push(description); }
+    if (shouldUpdate(address) && hasColumn('address')) { 
+      updates.push("address = ?"); 
+      values.push(address); 
+    }
+    if (shouldUpdate(city) && hasColumn('city')) { 
+      updates.push("city = ?"); 
+      values.push(city); 
+    }
+    if (shouldUpdate(phone) && hasColumn('phone')) { 
+      updates.push("phone = ?"); 
+      values.push(phone); 
+    }
+    if (shouldUpdate(email) && hasColumn('email')) { 
+      updates.push("email = ?"); 
+      values.push(email); 
+    }
+    if (shouldUpdate(website) && hasColumn('website')) { 
+      updates.push("website = ?"); 
+      values.push(website); 
+    }
+    if (shouldUpdate(description) && hasColumn('description')) { 
+      updates.push("description = ?"); 
+      values.push(description); 
+    }
 
     // Handle profile picture if uploaded
     if (req.files && req.files.length > 0) {
@@ -466,9 +732,13 @@ exports.updateSalon = async (req, res) => {
       values
     );
 
-    // Fetch updated salon
+    // Fetch updated salon - only select columns that exist
+    const selectFields = ['salon_id', 'name', 'slug', 'address', 'city', 'phone', 'email', 'website', 'description', 'profile_picture', 'status']
+      .filter(col => hasColumn(col))
+      .join(', ');
+    
     const updatedSalon = await query(
-      "SELECT salon_id, name, slug, address, city, state, zip, country, phone, email, website, description, profile_picture, status FROM salons WHERE salon_id = ?",
+      `SELECT ${selectFields} FROM salons WHERE salon_id = ?`,
       [salon_id]
     );
 
@@ -478,6 +748,524 @@ exports.updateSalon = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating salon:", error);
-    res.status(500).json({ error: "Failed to update salon" });
+    res.status(500).json({ 
+      error: error.message || "Failed to update salon",
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
+/**
+ * GET /api/salons/:salon_id/business-hours
+ * Get salon business hours
+ */
+exports.getSalonBusinessHours = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    // Verify ownership
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to view this salon" });
+    }
+
+    const businessHours = await salonService.getSalonBusinessHours(salon_id);
+    res.json({ businessHours });
+  } catch (error) {
+    console.error("Error fetching business hours:", error);
+    res.status(500).json({ error: "Failed to fetch business hours" });
+  }
+};
+
+/**
+ * PUT /api/salons/:salon_id/business-hours
+ * Update salon business hours
+ */
+exports.updateSalonBusinessHours = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id || req.user?.id;
+    const { businessHours } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    // Verify ownership
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to update this salon" });
+    }
+
+    if (!businessHours || typeof businessHours !== 'object') {
+      return res.status(400).json({ error: "Invalid business hours data" });
+    }
+
+    await salonService.updateSalonBusinessHours(salon_id, businessHours);
+    res.json({ message: "Business hours updated successfully" });
+  } catch (error) {
+    console.error("Error updating business hours:", error);
+    res.status(500).json({ 
+      error: error.message || "Failed to update business hours",
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
+/**
+ * GET /api/salons/:salon_id/notification-settings
+ * Get salon notification settings
+ */
+exports.getSalonNotificationSettings = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    // Verify ownership
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to view this salon" });
+    }
+
+    const notificationSettings = await salonService.getSalonNotificationSettings(salon_id);
+    res.json({ notificationSettings });
+  } catch (error) {
+    console.error("Error fetching notification settings:", error);
+    res.status(500).json({ error: "Failed to fetch notification settings" });
+  }
+};
+
+/**
+ * PUT /api/salons/:salon_id/notification-settings
+ * Update salon notification settings
+ */
+exports.updateSalonNotificationSettings = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+    const { notificationSettings } = req.body;
+
+    // Verify ownership
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to update this salon" });
+    }
+
+    if (!notificationSettings || typeof notificationSettings !== 'object') {
+      return res.status(400).json({ error: "Invalid notification settings data" });
+    }
+
+    await salonService.updateSalonNotificationSettings(salon_id, notificationSettings);
+    res.json({ message: "Notification settings updated successfully" });
+  } catch (error) {
+    console.error("Error updating notification settings:", error);
+    res.status(500).json({ error: "Failed to update notification settings" });
+  }
+};
+
+/**
+ * GET /api/salons/:salon_id/amenities
+ * Get salon amenities
+ */
+exports.getSalonAmenities = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    // Verify ownership
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to view this salon" });
+    }
+
+    const amenities = await salonService.getSalonAmenities(salon_id);
+    res.json({ amenities });
+  } catch (error) {
+    console.error("Error fetching amenities:", error);
+    res.status(500).json({ error: "Failed to fetch amenities" });
+  }
+};
+
+/**
+ * PUT /api/salons/:salon_id/amenities
+ * Update salon amenities
+ */
+exports.updateSalonAmenities = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    // Verify ownership
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to update this salon" });
+    }
+
+    const { amenities } = req.body;
+    if (!Array.isArray(amenities)) {
+      return res.status(400).json({ error: "Amenities must be an array" });
+    }
+
+    await salonService.updateSalonAmenities(salon_id, amenities);
+    res.json({ message: "Amenities updated successfully" });
+  } catch (error) {
+    console.error("Error updating amenities:", error);
+    res.status(500).json({ error: "Failed to update amenities" });
+  }
+};
+
+/**
+ * GET /api/salons/:salon_id/booking-settings
+ * Get salon booking settings
+ */
+exports.getSalonBookingSettings = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    // Verify ownership
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to view this salon" });
+    }
+
+    const bookingSettings = await salonService.getSalonBookingSettings(salon_id);
+    res.json(bookingSettings);
+  } catch (error) {
+    console.error("Error fetching booking settings:", error);
+    res.status(500).json({ error: "Failed to fetch booking settings" });
+  }
+};
+
+/**
+ * PUT /api/salons/:salon_id/booking-settings
+ * Update salon booking settings
+ */
+exports.updateSalonBookingSettings = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    // Verify ownership
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to update this salon" });
+    }
+
+    const bookingSettings = req.body;
+    await salonService.updateSalonBookingSettings(salon_id, bookingSettings);
+    res.json({ message: "Booking settings updated successfully" });
+  } catch (error) {
+    console.error("Error updating booking settings:", error);
+    res.status(500).json({ error: "Failed to update booking settings" });
+  }
+};
+
+/**
+ * GET /api/salons/:salon_id/loyalty-settings
+ * Get salon loyalty settings
+ */
+exports.getSalonLoyaltySettings = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to view this salon" });
+    }
+
+    const loyaltySettings = await salonService.getSalonLoyaltySettings(salon_id);
+    res.json(loyaltySettings);
+  } catch (error) {
+    console.error("Error fetching loyalty settings:", error);
+    res.status(500).json({ error: "Failed to fetch loyalty settings" });
+  }
+};
+
+/**
+ * PUT /api/salons/:salon_id/loyalty-settings
+ * Update salon loyalty settings
+ */
+exports.updateSalonLoyaltySettings = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to update this salon" });
+    }
+
+    const loyaltySettings = req.body;
+    await salonService.updateSalonLoyaltySettings(salon_id, loyaltySettings);
+    res.json({ message: "Loyalty settings updated successfully" });
+  } catch (error) {
+    console.error("Error updating loyalty settings:", error);
+    res.status(500).json({ error: "Failed to update loyalty settings" });
+  }
+};
+
+/**
+ * GET /api/salons/:salon_id/slot-settings
+ * Get salon appointment slot settings
+ */
+exports.getSalonSlotSettings = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to view this salon" });
+    }
+
+    const slotSettings = await salonService.getSalonSlotSettings(salon_id);
+    res.json(slotSettings);
+  } catch (error) {
+    console.error("Error fetching slot settings:", error);
+    res.status(500).json({ error: "Failed to fetch slot settings" });
+  }
+};
+
+/**
+ * PUT /api/salons/:salon_id/slot-settings
+ * Update salon appointment slot settings
+ */
+exports.updateSalonSlotSettings = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to update this salon" });
+    }
+
+    const slotSettings = req.body;
+    await salonService.updateSalonSlotSettings(salon_id, slotSettings);
+    res.json({ message: "Slot settings updated successfully" });
+  } catch (error) {
+    console.error("Error updating slot settings:", error);
+    res.status(500).json({ error: "Failed to update slot settings" });
+  }
+};
+
+/**
+ * GET /api/salons/:salon_id/review-settings
+ * Get salon review settings
+ */
+exports.getSalonReviewSettings = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to view this salon" });
+    }
+
+    const reviewSettings = await salonService.getSalonReviewSettings(salon_id);
+    res.json(reviewSettings);
+  } catch (error) {
+    console.error("Error fetching review settings:", error);
+    res.status(500).json({ error: "Failed to fetch review settings" });
+  }
+};
+
+/**
+ * PUT /api/salons/:salon_id/review-settings
+ * Update salon review settings
+ */
+exports.updateSalonReviewSettings = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to update this salon" });
+    }
+
+    const reviewSettings = req.body;
+    await salonService.updateSalonReviewSettings(salon_id, reviewSettings);
+    res.json({ message: "Review settings updated successfully" });
+  } catch (error) {
+    console.error("Error updating review settings:", error);
+    res.status(500).json({ error: "Failed to update review settings" });
+  }
+};
+
+/**
+ * GET /api/salons/:salon_id/operating-policies
+ * Get salon operating policies
+ */
+exports.getSalonOperatingPolicies = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to view this salon" });
+    }
+
+    const policies = await salonService.getSalonOperatingPolicies(salon_id);
+    res.json(policies);
+  } catch (error) {
+    console.error("Error fetching operating policies:", error);
+    res.status(500).json({ error: "Failed to fetch operating policies" });
+  }
+};
+
+/**
+ * PUT /api/salons/:salon_id/operating-policies
+ * Update salon operating policies
+ */
+exports.updateSalonOperatingPolicies = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userId = req.user?.user_id;
+
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to update this salon" });
+    }
+
+    const policies = req.body;
+    await salonService.updateSalonOperatingPolicies(salon_id, policies);
+    res.json({ message: "Operating policies updated successfully" });
+  } catch (error) {
+    console.error("Error updating operating policies:", error);
+    res.status(500).json({ error: "Failed to update operating policies" });
   }
 };
