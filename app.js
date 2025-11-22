@@ -12,6 +12,13 @@ const appointmentRoutes = require("./modules/appointments/routes");
 const analyticsRoutes = require("./modules/analytics/routes");
 const salonRoutes = require("./modules/salons/routes");
 const photoRoutes = require("./modules/photos/routes");
+const accountRoutes = require("./modules/account/routes");
+const historyRoutes = require("./modules/history/routes");
+const serviceRoutes = require("./modules/services/routes");
+const notificationRoutes = require("./modules/notifications/routes");
+const messageRoutes = require("./modules/messages/routes");
+const reviewRoutes = require("./modules/reviews/routes");
+// const subscriptionRoutes = require("./modules/subscriptions/routes"); // Disabled until payment implementation
 const { db, testConnection } = require("./config/database");
 
 const app = express();
@@ -59,6 +66,13 @@ app.use("/api/users", userRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/photos", photoRoutes);
+app.use("/api/account", accountRoutes);
+app.use("/api/history", historyRoutes);
+app.use("/api/services", serviceRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/reviews", reviewRoutes);
+// app.use("/api/subscriptions", subscriptionRoutes); // Disabled until payment implementation
 
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
