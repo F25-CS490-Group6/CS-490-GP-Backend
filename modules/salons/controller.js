@@ -14,7 +14,7 @@ exports.getAllSalons = async (req, res) => {
     let sql = `
       SELECT 
         s.salon_id,
-        COALESCE(s.name, s.salon_name) AS name,
+        s.salon_name AS name,
         s.slug,
         s.address,
         s.city,
@@ -22,7 +22,6 @@ exports.getAllSalons = async (req, res) => {
         s.email,
         s.website,
         s.description,
-        s.profile_picture,
         s.status,
         s.created_at,
         u.full_name as owner_name
@@ -35,7 +34,7 @@ exports.getAllSalons = async (req, res) => {
     
     if (q) {
       sql +=
-        " AND (COALESCE(s.name, s.salon_name) LIKE ? OR s.description LIKE ? OR s.city LIKE ?)";
+        " AND (s.salon_name LIKE ? OR s.description LIKE ? OR s.city LIKE ?)";
       params.push(`%${q}%`, `%${q}%`, `%${q}%`);
     }
     
