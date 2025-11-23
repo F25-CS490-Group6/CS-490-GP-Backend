@@ -14,11 +14,14 @@ exports.createCheckoutAndNotify = async (user_id, amount, appointment_id) => {
   );
 
   const [[appointment]] = await db.query(
-    `SELECT a.*, s.salon_name, sv.custom_name as service_name
+    `SELECT a.*, s.salon_name,
+            GROUP_CONCAT(sv.custom_name SEPARATOR ', ') as service_name
      FROM appointments a
      JOIN salons s ON a.salon_id = s.salon_id
-     JOIN services sv ON a.service_id = sv.service_id
-     WHERE a.appointment_id = ?`,
+     LEFT JOIN appointment_services asv ON a.appointment_id = asv.appointment_id
+     LEFT JOIN services sv ON asv.service_id = sv.service_id
+     WHERE a.appointment_id = ?
+     GROUP BY a.appointment_id`,
     [appointment_id]
   );
 

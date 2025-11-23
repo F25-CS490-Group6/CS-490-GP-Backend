@@ -14,13 +14,20 @@ const salonRoutes = require("./modules/salons/routes");
 const photoRoutes = require("./modules/photos/routes");
 const paymentRoutes = require("./modules/payments/routes");
 const webhookController = require("./modules/payments/webhooks");
-const { db, testConnection } = require("./config/database");
+const { db, testConnection, closePool } = require("./config/database");
 
 const app = express();
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3001",
+  "http://192.168.1.225:3001",
+  "http://localhost:3002",
+  "http://127.0.0.1:3002",
+  "http://localhost:3003",
+  "http://127.0.0.1:3003",
 ];
 
 // Serve uploaded files statically
@@ -101,13 +108,13 @@ const startServer = async () => {
 // Graceful shutdown
 process.on("SIGTERM", async () => {
   console.log("SIGTERM received, shutting down gracefully...");
-  await db.closePool();
+  await closePool();
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
   console.log("SIGINT received, shutting down gracefully...");
-  await db.closePool();
+  await closePool();
   process.exit(0);
 });
 

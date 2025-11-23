@@ -12,9 +12,9 @@ exports.getAllSalons = async (req, res) => {
     const offset = (page - 1) * limit;
     
     let sql = `
-      SELECT 
+      SELECT
         s.salon_id,
-        s.name,
+        s.salon_name as name,
         s.slug,
         s.address,
         s.city,
@@ -30,11 +30,11 @@ exports.getAllSalons = async (req, res) => {
       LEFT JOIN users u ON u.user_id = s.owner_id
       WHERE s.status = 'active' OR s.status = 'pending'
     `;
-    
+
     const params = [];
-    
+
     if (q) {
-      sql += " AND (s.name LIKE ? OR s.description LIKE ? OR s.city LIKE ?)";
+      sql += " AND (s.salon_name LIKE ? OR s.description LIKE ? OR s.city LIKE ?)";
       params.push(`%${q}%`, `%${q}%`, `%${q}%`);
     }
     
