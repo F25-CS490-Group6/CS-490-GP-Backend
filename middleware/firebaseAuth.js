@@ -43,6 +43,10 @@ exports.verifyCustomJwt = (req, res, next) => {
  */
 exports.authenticateUser = async (req, res, next) => {
   try {
+    if (!admin.apps.length) {
+      return res.status(503).json({ error: "Firebase authentication unavailable" });
+    }
+
     const authHeader = req.headers.authorization || "";
     const idToken = authHeader.startsWith("Bearer ")
       ? authHeader.split(" ")[1]
@@ -88,6 +92,10 @@ exports.authenticateUser = async (req, res, next) => {
  */
 exports.verifyFirebaseToken = async (req, res, next) => {
   try {
+    if (!admin.apps.length) {
+      return res.status(503).json({ error: "Firebase authentication unavailable" });
+    }
+
     const authHeader = req.headers.authorization || "";
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ error: "Missing or invalid token" });

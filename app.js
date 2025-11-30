@@ -15,19 +15,31 @@ const salonRoutes = require("./modules/salons/routes");
 const photoRoutes = require("./modules/photos/routes");
 const notificationRoutes = require("./modules/notifications/routes");
 const historyRoutes = require("./modules/history/routes");
-const { db, testConnection } = require("./config/database");
+const paymentRoutes = require("./modules/payments/routes");
+const webhookController = require("./modules/payments/webhooks");
+const { db, testConnection, closePool } = require("./config/database");
 
 const app = express();
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3001",
+  "http://192.168.1.225:3001",
+  "http://localhost:3002",
+  "http://127.0.0.1:3002",
+  "http://localhost:3003",
+  "http://127.0.0.1:3003",
 ];
 
 // Serve uploaded files statically
 app.use("/uploads", express.static("public/uploads"));
 
 app.use(helmet());
+
+// Stripe webhook needs raw body - must be BEFORE express.json()
+app.use("/api/payments/webhook", express.raw({ type: "application/json" }), webhookController.handleWebhook);
 
 app.use(
   cors({
@@ -65,6 +77,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/photos", photoRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/history", historyRoutes);
+app.use("/api/payments", paymentRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
@@ -101,13 +114,13 @@ const startServer = async () => {
 // Graceful shutdown
 process.on("SIGTERM", async () => {
   console.log("SIGTERM received, shutting down gracefully...");
-  await db.closePool();
+  await closePool();
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
   console.log("SIGINT received, shutting down gracefully...");
-  await db.closePool();
+  await closePool();
   process.exit(0);
 });
 
