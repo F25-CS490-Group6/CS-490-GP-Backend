@@ -107,7 +107,16 @@ const createOwnerSalon = async (ownerId, payload = {}) => {
     )})`,
     values
   );
-  return { salonId: result.insertId, slug };
+  
+  const salonId = result.insertId;
+  
+  // Update users table to set salon_id for the owner
+  await db.query(
+    "UPDATE users SET salon_id = ? WHERE user_id = ?",
+    [salonId, ownerId]
+  );
+  
+  return { salonId, slug };
 };
 
 const cleanupUserRecords = async (userId) => {
@@ -256,6 +265,7 @@ exports.loginManual = async (req, res) => {
           user_id: user.user_id,
           email: user.email,
           role: user.user_role,
+          salon_id: user.salon_id || null,
           temp2FA: true,
         },
         "15m"
@@ -303,6 +313,7 @@ exports.loginManual = async (req, res) => {
       user_id: user.user_id,
       email: user.email,
       role: user.user_role,
+      salon_id: user.salon_id || null,
     });
 
     // Set secure HTTP-only cookie for middleware + persistence
@@ -462,7 +473,19 @@ exports.setRole = async (req, res) => {
       email,
       role
     );
-    const token = authService.generateAppJwt({ user_id: userId, email, role });
+    // Get salon_id if user already has one (for existing users)
+    const [userRows] = await db.query(
+      "SELECT salon_id FROM users WHERE user_id = ?",
+      [userId]
+    );
+    const salonId = userRows[0]?.salon_id || null;
+    
+    const token = authService.generateAppJwt({ 
+      user_id: userId, 
+      email, 
+      role,
+      salon_id: salonId 
+    });
     res.status(201).json({ token, role });
   } catch (err) {
     console.error("Error setting role:", err);
@@ -501,7 +524,7 @@ exports.getCurrentUser = async (req, res) => {
     } else if (req.user) {
       const [rows] = await db.query(
         `${baseSelect} WHERE u.user_id = ? OR u.email = ?`,
-        [req.user.user_id, req.user.email]
+        [req.user?.user_id || req.user?.id, req.user?.email]
       );
 
       if (!rows.length)
@@ -527,7 +550,7 @@ exports.logout = async (req, res) => {
 
 exports.enable2FA = async (req, res) => {
   try {
-    const userId = req.user.user_id || req.user.id;
+    const userId = req.user?.user_id || req.user?.id;
     const { method, phoneNumber: providedPhoneNumber } = req.body;
 
     if (!method || !["sms", "email"].includes(method)) {
@@ -578,7 +601,7 @@ exports.enable2FA = async (req, res) => {
 
 exports.disable2FA = async (req, res) => {
   try {
-    const userId = req.user.user_id || req.user.id;
+    const userId = req.user?.user_id || req.user?.id;
 
     await db.query(
       "UPDATE user_2fa_settings SET is_enabled = false WHERE user_id = ?",
@@ -594,7 +617,7 @@ exports.disable2FA = async (req, res) => {
 
 exports.get2FAStatusController = async (req, res) => {
   try {
-    const userId = req.user.user_id || req.user.id;
+    const userId = req.user?.user_id || req.user?.id;
     const status = await authService.get2FAStatus(userId);
 
     res
@@ -643,17 +666,20 @@ exports.verify2FA = async (req, res) => {
 
     // Generate final token
     await authService.updateLoginStats(userId);
+    
+    // Get user details including salon_id
+    const [rows] = await db.query(
+      "SELECT user_id, email, user_role, full_name, salon_id FROM users WHERE user_id = ?",
+      [userId]
+    );
+    
+    const user = rows[0];
     const finalToken = authService.generateJwtToken({
       user_id: userId,
       email: decoded.email,
       role: decoded.role,
+      salon_id: user?.salon_id || null,
     });
-
-    // Get user details
-    const [rows] = await db.query(
-      "SELECT user_id, email, user_role, full_name FROM users WHERE user_id = ?",
-      [userId]
-    );
 
     res.cookie("token", finalToken, buildAuthCookieOptions(60 * 60 * 1000));
 
@@ -676,11 +702,21 @@ exports.refreshToken = async (req, res) => {
     const decoded = jwt.verify(oldToken, process.env.JWT_SECRET, {
       ignoreExpiration: true,
     });
+    
+    // Get current user's salon_id from database
+    const [userRows] = await db.query(
+      "SELECT salon_id FROM users WHERE user_id = ?",
+      [decoded.user_id]
+    );
+    
+    const salonId = userRows[0]?.salon_id || decoded.salon_id || null;
+    
     const newToken = jwt.sign(
       {
         user_id: decoded.user_id,
         email: decoded.email,
         role: decoded.role,
+        salon_id: salonId,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }

@@ -8,6 +8,12 @@ const checkRoles = require("../../middleware/checkRoles");
 router.post("/login", staffController.verifyStaffLogin);
 router.post("/set-pin", staffController.setStaffPin);
 
+// Get all staff for salon (public endpoint for customer view) - MUST be before protected routes
+router.get(
+  "/salon/:id/staff",
+  staffController.getStaffBySalonPublic
+);
+
 // ===== Staff role management =====
 router.get("/staff_roles", staffController.getStaffRoles);
 router.post("/staff_roles", staffController.addStaffRole);
@@ -27,14 +33,6 @@ router.put(
   verifyCustomJwt,
   checkRoles("owner", "admin"),
   staffController.editStaff
-);
-
-// Get all staff for salon
-router.get(
-  "/salon/:id/staff",
-  verifyCustomJwt,
-  checkRoles(["owner", "staff", "admin"]),
-  staffController.getStaffBySalon
 );
 
 // Get single staff

@@ -1,0 +1,235 @@
+const { db } = require("../../config/database");
+const bcrypt = require("bcrypt");
+
+/**
+ * Get account settings for a user
+ */
+async function getAccountSettings(userId) {
+  const [rows] = await db.query(
+    `SELECT 
+      user_id,
+      full_name,
+      email,
+      phone,
+      profile_pic,
+      subscription_plan,
+      created_at,
+      updated_at
+    FROM users
+    WHERE user_id = ?`,
+    [userId]
+  );
+
+  if (!rows || rows.length === 0) {
+    return null;
+  }
+
+  const user = rows[0];
+  return {
+    user_id: user.user_id,
+    full_name: user.full_name,
+    email: user.email,
+    phone: user.phone,
+    profile_pic: user.profile_pic,
+    subscription_plan: user.subscription_plan || 'free',
+    created_at: user.created_at,
+    updated_at: user.updated_at,
+  };
+}
+
+/**
+ * Update account profile (name, email, phone, profile_pic)
+ */
+async function updateAccountProfile(userId, updates) {
+  const allowedFields = ["full_name", "email", "phone", "profile_pic"];
+  const fields = [];
+  const values = [];
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (allowedFields.includes(key) && value !== undefined) {
+      fields.push(`${key} = ?`);
+      values.push(value);
+    }
+  }
+
+  if (fields.length === 0) {
+    return { updated: false, message: "No valid fields to update" };
+  }
+
+  // Check if email is being changed and if it's already taken
+  if (updates.email) {
+    const [existing] = await db.query(
+      "SELECT user_id FROM users WHERE email = ? AND user_id != ?",
+      [updates.email, userId]
+    );
+    if (existing.length > 0) {
+      throw new Error("Email already in use");
+    }
+  }
+
+  fields.push("updated_at = CURRENT_TIMESTAMP");
+  values.push(userId);
+
+  const [result] = await db.query(
+    `UPDATE users SET ${fields.join(", ")} WHERE user_id = ?`,
+    values
+  );
+
+  return {
+    updated: result.affectedRows > 0,
+    affectedRows: result.affectedRows,
+  };
+}
+
+/**
+ * Change user password
+ */
+async function changePassword(userId, currentPassword, newPassword) {
+  // Get current password hash
+  const [authRows] = await db.query(
+    "SELECT password_hash FROM auth WHERE user_id = ?",
+    [userId]
+  );
+
+  if (!authRows || authRows.length === 0) {
+    throw new Error("Password authentication not set up for this account");
+  }
+
+  // Verify current password
+  const isValid = await bcrypt.compare(
+    currentPassword,
+    authRows[0].password_hash
+  );
+
+  if (!isValid) {
+    throw new Error("Current password is incorrect");
+  }
+
+  // Hash new password
+  const newHash = await bcrypt.hash(newPassword, 10);
+
+  // Update password
+  const [result] = await db.query(
+    "UPDATE auth SET password_hash = ? WHERE user_id = ?",
+    [newHash, userId]
+  );
+
+  return {
+    updated: result.affectedRows > 0,
+  };
+}
+
+/**
+ * Get available subscription plans
+ */
+function getAvailablePlans() {
+  return [
+    {
+      plan_id: "free",
+      plan_name: "Free",
+      price: 0,
+      features: [
+        "Basic appointment management",
+        "Up to 2 staff members",
+        "Up to 50 appointments/month",
+        "Basic analytics",
+        "Email support",
+      ],
+    },
+    {
+      plan_id: "premium",
+      plan_name: "Premium",
+      price: 29.99,
+      features: [
+        "Unlimited appointments",
+        "Up to 10 staff members",
+        "Advanced analytics & reports",
+        "Customer loyalty program",
+        "SMS notifications",
+        "Priority email support",
+        "Custom branding",
+      ],
+    },
+    {
+      plan_id: "enterprise",
+      plan_name: "Enterprise",
+      price: 79.99,
+      features: [
+        "Unlimited everything",
+        "Unlimited staff members",
+        "Advanced analytics & custom reports",
+        "Full loyalty program features",
+        "SMS & Email notifications",
+        "24/7 priority support",
+        "Custom branding & white-label",
+        "API access",
+        "Dedicated account manager",
+      ],
+    },
+  ];
+}
+
+/**
+ * Get current subscription for user
+ */
+async function getCurrentSubscription(userId) {
+  const [rows] = await db.query(
+    `SELECT subscription_plan FROM users WHERE user_id = ?`,
+    [userId]
+  );
+
+  if (!rows || rows.length === 0) {
+    return { plan: "free" };
+  }
+
+  return {
+    plan: rows[0].subscription_plan || "free",
+  };
+}
+
+/**
+ * Update subscription plan
+ */
+async function updateSubscription(userId, planName) {
+  const availablePlans = getAvailablePlans();
+  const plan = availablePlans.find((p) => p.plan_id === planName);
+
+  if (!plan) {
+    throw new Error(`Invalid plan: ${planName}`);
+  }
+
+  await db.query(
+    "UPDATE users SET subscription_plan = ? WHERE user_id = ?",
+    [planName, userId]
+  );
+
+  return {
+    plan: planName,
+    message: `Switched to ${plan.plan_name} plan`,
+  };
+}
+
+/**
+ * Delete/deactivate account
+ */
+async function deleteAccount(userId) {
+  const [result] = await db.query(
+    "UPDATE users SET user_role = 'deleted', updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
+    [userId]
+  );
+
+  return {
+    deleted: result.affectedRows > 0,
+  };
+}
+
+module.exports = {
+  getAccountSettings,
+  updateAccountProfile,
+  changePassword,
+  getAvailablePlans,
+  getCurrentSubscription,
+  updateSubscription,
+  deleteAccount,
+};
+

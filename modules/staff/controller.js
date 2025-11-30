@@ -108,6 +108,25 @@ exports.addStaff = async (req, res) => {
       });
     }
 
+    // Check subscription limits - get owner from salon
+    const subscriptionLimits = require("../account/subscriptionLimits");
+    const [salonRows] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+    
+    if (salonRows && salonRows.length > 0) {
+      const ownerId = salonRows[0].owner_id;
+      const staffCheck = await subscriptionLimits.canAddStaff(ownerId, salon_id);
+      if (!staffCheck.allowed) {
+        return res.status(403).json({
+          error: staffCheck.message,
+          current: staffCheck.current,
+          limit: staffCheck.limit,
+        });
+      }
+    }
+
     // Step 1: Find or create user
     const [existingUser] = await db.query(
       "SELECT user_id FROM users WHERE email = ?",
@@ -333,6 +352,20 @@ exports.deleteStaff = async (req, res) => {
   } catch (err) {
     console.error("Delete staff error:", err);
     res.status(500).json({ error: "Server error deleting staff" });
+  }
+};
+
+// Public endpoint for customer view
+exports.getStaffBySalonPublic = async (req, res) => {
+  try {
+    const salonId = Number(req.params.id);
+    const staff = await staffService.getStaffBySalon(salonId);
+    // Only return active staff for public view
+    const activeStaff = staff.filter(s => s.is_active === 1 || s.is_active === true);
+    return res.status(200).json({ staff: activeStaff });
+  } catch (err) {
+    console.error("Error fetching staff:", err);
+    res.status(500).json({ error: "Server error fetching staff" });
   }
 };
 

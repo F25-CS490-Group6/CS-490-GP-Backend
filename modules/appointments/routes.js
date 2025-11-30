@@ -50,7 +50,7 @@ router.delete(
   "/:id",
   verifyAnyToken,
   checkRoles("customer", "staff", "owner"),
-  appointmentController.cancelAppointment
+  appointmentController.deleteAppointment
 );
 
 module.exports = router;

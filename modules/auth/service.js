@@ -83,9 +83,8 @@ async function verifyFirebaseToken(idToken) {
 
 async function findFirebaseUser(firebaseUid, email) {
   const [rows] = await db.query(
-    `SELECT u.user_id, u.user_role, s.salon_id
+    `SELECT u.user_id, u.user_role, u.salon_id
      FROM users u
-     LEFT JOIN salons s ON s.owner_id = u.user_id
      WHERE u.firebase_uid = ? OR u.email = ?
      LIMIT 1`,
     [firebaseUid, email]

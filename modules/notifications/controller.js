@@ -47,13 +47,15 @@ exports.notifyUserDiscount = async (req, res) => {
 
 exports.getUserNotifications = async (req, res) => {
   try {
-    const user_id = req.user.user_id || req.user.id;
+    const user_id = req.user?.user_id || req.user?.id;
     
     if (!user_id) {
       return res.status(401).json({ error: "User not authenticated" });
     }
     
+    console.log('Fetching notifications for user_id:', user_id);
     const notifications = await notificationService.getUserNotifications(user_id);
+    console.log('Found notifications:', notifications.length);
     res.json(notifications);
   } catch (err) {
     console.error("Get notifications error:", err);
@@ -64,7 +66,11 @@ exports.getUserNotifications = async (req, res) => {
 exports.markNotificationRead = async (req, res) => {
   try {
     const notification_id = req.params.id;
-    const user_id = req.user.user_id || req.user.id;
+    const user_id = req.user?.user_id || req.user?.id;
+    
+    if (!user_id) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
     
     await notificationService.markNotificationRead(notification_id, user_id);
     res.json({ message: "Notification marked as read" });
@@ -76,7 +82,11 @@ exports.markNotificationRead = async (req, res) => {
 
 exports.markAllNotificationsRead = async (req, res) => {
   try {
-    const user_id = req.user.user_id || req.user.id;
+    const user_id = req.user?.user_id || req.user?.id;
+    
+    if (!user_id) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
     
     await notificationService.markAllNotificationsRead(user_id);
     res.json({ message: "All notifications marked as read" });

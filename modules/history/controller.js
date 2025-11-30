@@ -3,12 +3,17 @@ const historyService = require("./service");
 
 exports.getUserHistory = async (req, res) => {
   try {
-    const user_id = req.user.user_id || req.user.id;
+    const user_id = req.user?.user_id;
+
+    if (!user_id) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     const appointments = await historyService.getUserHistory(user_id);
     res.json(appointments);
   } catch (err) {
     console.error("History error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || "Failed to get user history" });
   }
 };
 
