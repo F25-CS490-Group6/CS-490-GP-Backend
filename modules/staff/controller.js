@@ -140,7 +140,8 @@ exports.addStaff = async (req, res) => {
     await staffService.savePinSetupToken(insertId, token);
 
     // Step 4: Build URLs
-    const frontendBase = process.env.FRONTEND_URL;
+    const frontendBase =
+      process.env.FRONTEND_URL || "https://main.d9mc2v9b3gxgw.amplifyapp.com";
     const setupLink = `${frontendBase}/salon/${salon_slug}/staff/sign-in-code?token=${token}`;
     const loginLink = `${frontendBase}/salon/${salon_slug}/staff/login`;
 

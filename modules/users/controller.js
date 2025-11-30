@@ -6,12 +6,17 @@ const {
   buildSignInLink,
 } = require("../../services/customerPortalLinks");
 
+// ----------------------
+// CREATE USER
+// ----------------------
 const createUser = async (req, res) => {
   try {
     const { full_name, phone, email, user_role, salon_id } = req.body;
     if (!full_name || !email)
       return res.status(400).json({ error: "Name and email are required" });
+
     const role = user_role === "staff" ? "staff" : "customer";
+
     const newUserId = await userService.createUser(
       full_name,
       phone,
@@ -19,6 +24,7 @@ const createUser = async (req, res) => {
       role,
       salon_id
     );
+
     res.status(201).json({
       message: `${
         role.charAt(0).toUpperCase() + role.slice(1)
@@ -31,6 +37,9 @@ const createUser = async (req, res) => {
   }
 };
 
+// ----------------------
+// GET ALL USERS
+// ----------------------
 const getAllUsers = async (req, res) => {
   try {
     const users = await userService.getAllUsers();
@@ -41,6 +50,9 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+// ----------------------
+// GET CUSTOMERS
+// ----------------------
 const getCustomers = async (req, res) => {
   try {
     const customers = await userService.getCustomers();
@@ -51,11 +63,16 @@ const getCustomers = async (req, res) => {
   }
 };
 
+// ----------------------
+// GET SALON CUSTOMERS (Searchable)
+// ----------------------
 const getSalonCustomers = async (req, res) => {
   try {
     const { salon_id, search = "" } = req.query;
     if (!salon_id) return res.status(400).json({ error: "Salon ID required" });
+
     const keyword = `%${search}%`;
+
     const [rows] = await db.query(
       `
       SELECT 
@@ -70,6 +87,7 @@ const getSalonCustomers = async (req, res) => {
       `,
       [salon_id, keyword, keyword, keyword]
     );
+
     res.json(rows);
   } catch (error) {
     console.error("getSalonCustomers error:", error);
@@ -77,6 +95,9 @@ const getSalonCustomers = async (req, res) => {
   }
 };
 
+// ----------------------
+// GET CUSTOMER STATS
+// ----------------------
 const getSalonCustomerStats = async (req, res) => {
   try {
     const salonId = Number(req.query.salon_id || req.user?.salon_id);
@@ -139,6 +160,9 @@ const getSalonCustomerStats = async (req, res) => {
   }
 };
 
+// ----------------------
+// GET CUSTOMER DIRECTORY
+// ----------------------
 const getSalonCustomerDirectory = async (req, res) => {
   try {
     const salonId = Number(req.query.salon_id || req.user?.salon_id);
@@ -224,6 +248,9 @@ const getSalonCustomerDirectory = async (req, res) => {
   }
 };
 
+// ----------------------
+// ADD SALON CUSTOMER
+// ----------------------
 const addSalonCustomer = async (req, res) => {
   try {
     const salonId = Number(req.body.salon_id || req.user?.salon_id);
@@ -237,6 +264,7 @@ const addSalonCustomer = async (req, res) => {
     }
 
     let userId;
+
     const [existing] = await db.query(
       "SELECT user_id FROM users WHERE email = ? LIMIT 1",
       [email]
@@ -281,15 +309,19 @@ const addSalonCustomer = async (req, res) => {
       ]
     );
 
+    // Build portal links
     const signInLink = buildSignInLink();
     const passwordSetupLink = isNewCustomer
       ? buildPasswordSetupLink(userId, email)
       : null;
+
     const firstName = (full_name || "there").split(" ")[0];
+
     const emailHtml = `
       <h2>Welcome to StyGo!</h2>
       <p>Hi ${firstName},</p>
       <p>You've been added as a customer at our salon. You can book or review your upcoming appointments any time.</p>
+
       ${
         isNewCustomer
           ? `
@@ -308,10 +340,12 @@ const addSalonCustomer = async (req, res) => {
       </p>
       `
       }
+
       <p>If you already have an appointment scheduled, you will receive separate confirmations with all the details.</p>
       <br/>
       <p>Thanks,<br/>The StyGo Team</p>
     `;
+
     await sendEmail(email, "You're now connected with StyGo", emailHtml);
 
     res.status(201).json({
@@ -329,10 +363,14 @@ const addSalonCustomer = async (req, res) => {
   }
 };
 
+// ----------------------
+// UPDATE SALON CUSTOMER
+// ----------------------
 const updateSalonCustomer = async (req, res) => {
   try {
     const salonId = Number(req.body.salon_id || req.user?.salon_id);
     const { userId } = req.params;
+
     if (!salonId || !userId) {
       return res.status(400).json({ error: "Salon ID and user ID required" });
     }
@@ -341,6 +379,7 @@ const updateSalonCustomer = async (req, res) => {
       "SELECT 1 FROM salon_customers WHERE salon_id = ? AND user_id = ? LIMIT 1",
       [salonId, userId]
     );
+
     if (!existing.length) {
       return res
         .status(404)
@@ -394,10 +433,14 @@ const updateSalonCustomer = async (req, res) => {
   }
 };
 
+// ----------------------
+// DELETE CUSTOMER FROM SALON
+// ----------------------
 const deleteSalonCustomer = async (req, res) => {
   try {
     const salonId = Number(req.query.salon_id || req.user?.salon_id);
     const { userId } = req.params;
+
     if (!salonId || !userId) {
       return res.status(400).json({ error: "Salon ID and user ID required" });
     }
@@ -406,6 +449,7 @@ const deleteSalonCustomer = async (req, res) => {
       "DELETE FROM salon_customers WHERE salon_id = ? AND user_id = ?",
       [salonId, userId]
     );
+
     if (result.affectedRows === 0) {
       return res
         .status(404)
@@ -419,11 +463,17 @@ const deleteSalonCustomer = async (req, res) => {
   }
 };
 
+// ----------------------
+// GET USER BY ID
+// ----------------------
 const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
+
     const user = await userService.getUserById(id);
+
     if (!user) return res.status(404).json({ error: "User not found" });
+
     res.json(user);
   } catch (error) {
     console.error("Error fetching user:", error);
@@ -431,13 +481,19 @@ const getUserById = async (req, res) => {
   }
 };
 
+// ----------------------
+// UPDATE USER
+// ----------------------
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+
     const affected = await userService.updateUser(id, updates);
+
     if (affected === 0)
       return res.status(404).json({ error: "User not found" });
+
     res.json({ message: "User updated successfully" });
   } catch (error) {
     console.error("Error updating user:", error);
@@ -445,12 +501,18 @@ const updateUser = async (req, res) => {
   }
 };
 
+// ----------------------
+// DELETE USER
+// ----------------------
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
+
     const affected = await userService.deleteUser(id);
+
     if (affected === 0)
       return res.status(404).json({ error: "User not found" });
+
     res.json({ message: "User deleted successfully" });
   } catch (error) {
     console.error("Error deleting user:", error);
@@ -458,6 +520,9 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// ----------------------
+// EXPORT
+// ----------------------
 module.exports = {
   createUser,
   getAllUsers,
