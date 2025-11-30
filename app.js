@@ -7,7 +7,6 @@ const cookieParser = require("cookie-parser");
 const port = process.env.PORT || 4000;
 const authRoutes = require("./modules/auth/routes");
 const staffRoutes = require("./modules/staff/routes");
-const staffPortalRoutes = require("./modules/staffportal/routes");
 const userRoutes = require("./modules/users/routes");
 const appointmentRoutes = require("./modules/appointments/routes");
 const analyticsRoutes = require("./modules/analytics/routes");
@@ -20,8 +19,10 @@ const notificationRoutes = require("./modules/notifications/routes");
 const messageRoutes = require("./modules/messages/routes");
 const reviewRoutes = require("./modules/reviews/routes");
 const staffPortalRoutes = require("./modules/staffportal/routes");
+const paymentRoutes = require("./modules/payments/routes");
+const webhookController = require("./modules/payments/webhooks");
 // const subscriptionRoutes = require("./modules/subscriptions/routes"); // Disabled until payment implementation
-const { db, testConnection } = require("./config/database");
+const { db, testConnection, closePool } = require("./config/database");
 
 const app = express();
 const allowedOrigins = [
@@ -89,6 +90,7 @@ app.use("/api/services", serviceRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/payments", paymentRoutes);
 app.use("/api/staff-portal", staffPortalRoutes);
 // app.use("/api/subscriptions", subscriptionRoutes); // Disabled until payment implementation
 
