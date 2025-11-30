@@ -695,7 +695,13 @@ exports.verify2FA = async (req, res) => {
 };
 
 exports.refreshToken = async (req, res) => {
-  const oldToken = req.cookies?.token;
+  const cookieToken = req.cookies?.token;
+  const authHeader = req.headers.authorization || "";
+  const headerToken = authHeader.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : null;
+
+  const oldToken = cookieToken || headerToken;
   if (!oldToken) return res.status(401).json({ error: "Missing token" });
 
   try {
