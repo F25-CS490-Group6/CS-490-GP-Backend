@@ -25,8 +25,15 @@ const webhookController = require("./modules/payments/webhooks");
 const { db, testConnection, closePool } = require("./config/database");
 
 const app = express();
+// Support single FRONTEND_URL plus optional comma-separated FRONTEND_URLS for deployments
+const additionalOrigins = (process.env.FRONTEND_URLS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  ...additionalOrigins,
   "http://localhost:3000",
   "http://127.0.0.1:3000",
   "http://localhost:3001",
@@ -36,7 +43,7 @@ const allowedOrigins = [
   "http://127.0.0.1:3002",
   "http://localhost:3003",
   "http://127.0.0.1:3003",
-];
+].filter(Boolean);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static("public/uploads"));
