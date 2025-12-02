@@ -18,6 +18,9 @@ router.post(
   authController.setCustomerPasswordFromToken
 );
 
+// Admin setup route (public, but protected by token if ADMIN_SETUP_TOKEN is set)
+router.post("/setup-admin", authController.setupAdmin);
+
 router.get("/profile", verifyCustomJwt, (req, res) => {
   res.json({
     message: "Manual JWT verified successfully",

@@ -11,6 +11,9 @@ router.post("/checkout", verifyAnyToken, paymentController.createCheckout);
 // Get salon payments (authenticated)
 router.get("/salon/:salon_id", verifyAnyToken, paymentController.getPaymentsForSalon);
 
+// Get payment by session ID (public - for payment success page)
+router.get("/session", paymentController.getPaymentBySessionId);
+
 // Stripe webhook (no auth, raw body handled in app.js)
 router.post("/webhook", webhookController.handleWebhook);
 

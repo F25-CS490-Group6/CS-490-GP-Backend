@@ -20,5 +20,7 @@ router.patch(
 router.get("/customers", staffPortalController.listCustomers);
 router.get("/retail", staffPortalController.listRetail);
 router.get("/team", staffPortalController.listTeam);
+router.get("/availability", staffPortalController.getAvailability);
+router.put("/availability", staffPortalController.updateAvailability);
 
 module.exports = router;

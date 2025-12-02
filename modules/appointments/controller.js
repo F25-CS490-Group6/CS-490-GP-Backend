@@ -110,6 +110,55 @@ exports.createAppointment = async (req, res) => {
       });
     }
 
+    // Check booking settings: advance booking days limit and deposit requirement
+    const salonService = require("../salons/service");
+    const bookingSettings = await salonService.getSalonBookingSettings(resolvedSalonId);
+    const slotSettings = await salonService.getSalonSlotSettings(resolvedSalonId);
+    
+    // Validate advance booking days
+    const scheduledDate = new Date(finalScheduledTime);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const daysDifference = Math.ceil((scheduledDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysDifference > bookingSettings.advanceBookingDays) {
+      return res.status(400).json({
+        error: `Appointments can only be booked up to ${bookingSettings.advanceBookingDays} days in advance.`,
+      });
+    }
+
+    if (daysDifference < 0) {
+      return res.status(400).json({
+        error: "Cannot book appointments in the past.",
+      });
+    }
+
+    // Validate minimum advance booking hours (from slot settings)
+    const scheduledDateTime = new Date(finalScheduledTime);
+    const now = new Date();
+    const hoursDifference = (scheduledDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursDifference < slotSettings.minAdvanceBookingHours) {
+      return res.status(400).json({
+        error: `Appointments must be booked at least ${slotSettings.minAdvanceBookingHours} hours in advance.`,
+      });
+    }
+
+    // Check if deposit is required (only for customer bookings, not owner/staff)
+    if (bookingSettings.requireDeposit && bookingSettings.depositAmount > 0) {
+      if (role !== "owner" && role !== "staff" && role !== "admin") {
+        // For customers, check if deposit payment is included in the request
+        const depositPaid = req.body.deposit_paid || req.body.depositPaid || false;
+        if (!depositPaid) {
+          return res.status(400).json({
+            error: `A deposit of $${bookingSettings.depositAmount.toFixed(2)} is required to book this appointment.`,
+            requiresDeposit: true,
+            depositAmount: bookingSettings.depositAmount,
+          });
+        }
+      }
+    }
+
     // Check subscription limits for appointment creation
     // Only check if user is owner/admin creating appointment for their salon
     if (role === "owner" || role === "admin") {
@@ -138,6 +187,7 @@ exports.createAppointment = async (req, res) => {
 
     let userId;
     let customerFullName;
+    let isNewCustomer = false;
 
     // Prioritize authenticated user's ID to ensure appointments show in their profile
     if (tokenUserId) {
@@ -148,6 +198,7 @@ exports.createAppointment = async (req, res) => {
       if (userInfo && userInfo.length > 0) {
         userId = userInfo[0].user_id;
         customerFullName = userInfo[0].full_name;
+        isNewCustomer = false;
       } else {
         // User doesn't exist, create new
         const fullName =
@@ -158,6 +209,7 @@ exports.createAppointment = async (req, res) => {
         );
         userId = insert.insertId;
         customerFullName = fullName;
+        isNewCustomer = true;
       }
     } else {
       // No authenticated user, check if customer exists by email/phone
@@ -169,6 +221,7 @@ exports.createAppointment = async (req, res) => {
       if (existingCustomer.length) {
         userId = existingCustomer[0].user_id;
         customerFullName = existingCustomer[0].full_name;
+        isNewCustomer = false;
       } else {
         // Create new customer
         const fullName =
@@ -179,6 +232,7 @@ exports.createAppointment = async (req, res) => {
         );
         userId = insert.insertId;
         customerFullName = fullName;
+        isNewCustomer = true;
       }
     }
 
@@ -251,6 +305,25 @@ exports.createAppointment = async (req, res) => {
       notes,
       finalStatus
     );
+
+    // If deposit was required and paid, create a payment record for the deposit
+    if (bookingSettings.requireDeposit && bookingSettings.depositAmount > 0) {
+      const depositPaid = req.body.deposit_paid || req.body.depositPaid || false;
+      if (depositPaid) {
+        const paymentService = require("../payments/service");
+        try {
+          // Create a payment record for the deposit
+          await db.query(
+            `INSERT INTO payments (user_id, amount, payment_method, payment_status, appointment_id)
+             VALUES (?, ?, 'deposit', 'completed', ?)`,
+            [userId, bookingSettings.depositAmount, appointmentId]
+          );
+        } catch (paymentErr) {
+          console.error("Error recording deposit payment:", paymentErr);
+          // Don't fail the appointment creation if deposit recording fails
+        }
+      }
+    }
 
     const [[salonInfo]] = await db.query(
       "SELECT name, address, owner_id FROM salons WHERE salon_id = ?",
@@ -574,6 +647,42 @@ exports.updateAppointment = async (req, res) => {
               "appointment",
               ownerMessage
             );
+          }
+        } else if (updates.status === "completed") {
+          // Award loyalty points if loyalty program is enabled
+          try {
+            const salonService = require("../salons/service");
+            const loyaltySettings = await salonService.getSalonLoyaltySettings(appointment.salon_id);
+            
+            if (loyaltySettings.loyaltyEnabled && loyaltySettings.pointsPerVisit > 0) {
+              const loyaltyService = require("../loyalty/service");
+              await loyaltyService.earnLoyaltyPoints(
+                appointment.user_id,
+                appointment.salon_id,
+                loyaltySettings.pointsPerVisit
+              );
+            }
+
+            // Auto-request review if enabled
+            const reviewSettings = await salonService.getSalonReviewSettings(appointment.salon_id);
+            if (reviewSettings.autoRequestReviews) {
+              // Schedule review request based on reviewRequestTiming
+              const reviewRequestTime = new Date();
+              reviewRequestTime.setHours(
+                reviewRequestTime.getHours() + (reviewSettings.reviewRequestTiming || 24)
+              );
+              
+              // Create a notification/reminder for review request
+              const reviewMessage = `How was your experience at ${salonName}? Please leave a review!`;
+              await notificationService.scheduleInAppReminder(
+                appointment.user_id,
+                reviewMessage,
+                reviewRequestTime
+              );
+            }
+          } catch (loyaltyError) {
+            console.error("Error processing loyalty/review for completed appointment:", loyaltyError);
+            // Don't fail the status update if loyalty/review processing fails
           }
         } else if (updates.status === "cancelled") {
           // Appointment denied/cancelled - notify customer

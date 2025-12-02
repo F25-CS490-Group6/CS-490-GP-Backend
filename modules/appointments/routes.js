@@ -11,6 +11,15 @@ router.post(
   appointmentController.createAppointment
 );
 
+// Handle incorrect frontend URL pattern /api/appointments/create/:id
+// This should redirect to /api/appointments/:id but we'll handle it directly
+router.get(
+  "/create/:id",
+  verifyAnyToken,
+  checkRoles("customer", "staff", "owner"),
+  appointmentController.getAppointmentById
+);
+
 router.get(
   "/salon",
   verifyAnyToken,

@@ -20,8 +20,10 @@ const messageRoutes = require("./modules/messages/routes");
 const reviewRoutes = require("./modules/reviews/routes");
 const staffPortalRoutes = require("./modules/staffportal/routes");
 const paymentRoutes = require("./modules/payments/routes");
+const adminRoutes = require("./modules/admins/routes");
+const bookingRoutes = require("./modules/bookings/routes");
 const webhookController = require("./modules/payments/webhooks");
-// const subscriptionRoutes = require("./modules/subscriptions/routes"); // Disabled until payment implementation
+const subscriptionRoutes = require("./modules/subscriptions/routes");
 const { db, testConnection, closePool } = require("./config/database");
 
 const app = express();
@@ -50,11 +52,19 @@ app.use("/uploads", express.static("public/uploads"));
 
 app.use(helmet());
 
-// Stripe webhook needs raw body - must be BEFORE express.json()
+// Stripe webhooks need raw body - must be BEFORE express.json()
 app.use(
   "/api/payments/webhook",
   express.raw({ type: "application/json" }),
   webhookController.handleWebhook
+);
+
+// Subscription webhook also needs raw body
+const subscriptionController = require("./modules/subscriptions/controller");
+app.use(
+  "/api/subscriptions/webhook",
+  express.raw({ type: "application/json" }),
+  subscriptionController.handleWebhook
 );
 
 app.use(
@@ -98,8 +108,17 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/payments", paymentRoutes);
-app.use("/api/staff-portal", staffPortalRoutes);
-// app.use("/api/subscriptions", subscriptionRoutes); // Disabled until payment implementation
+app.use("/api/admins", adminRoutes);
+app.use("/api/bookings", bookingRoutes);
+const shopRoutes = require("./modules/shop/routes");
+app.use("/api/shop", shopRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
+
+// Handle frontend calling /reviews instead of /api/reviews (missing /api prefix)
+// This must be AFTER CORS middleware so CORS headers are included
+const reviewController = require("./modules/reviews/controller");
+app.get("/reviews/salon/:salon_id", reviewController.getSalonReviews);
+app.get("/reviews/:salon_id", reviewController.getSalonReviews);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });

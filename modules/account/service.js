@@ -1,5 +1,6 @@
 const { db } = require("../../config/database");
 const bcrypt = require("bcrypt");
+const userService = require("../users/service");
 
 /**
  * Get account settings for a user
@@ -210,17 +211,21 @@ async function updateSubscription(userId, planName) {
 }
 
 /**
- * Delete/deactivate account
+ * Delete account
+ * Actually deletes the user from the database (not just deactivate)
  */
 async function deleteAccount(userId) {
-  const [result] = await db.query(
-    "UPDATE users SET user_role = 'deleted', updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
-    [userId]
-  );
-
-  return {
-    deleted: result.affectedRows > 0,
-  };
+  try {
+    // Use the userService.deleteUser which handles all related records
+    const affected = await userService.deleteUser(userId);
+    
+    return {
+      deleted: affected > 0,
+    };
+  } catch (error) {
+    console.error("Error in deleteAccount service:", error);
+    throw error;
+  }
 }
 
 module.exports = {

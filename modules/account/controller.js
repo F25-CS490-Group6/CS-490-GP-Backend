@@ -202,13 +202,42 @@ const deleteAccount = async (req, res) => {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const { confirm } = req.body;
+    const { confirm, password } = req.body;
 
     if (confirm !== true) {
       return res.status(400).json({
         error: "Account deletion must be confirmed",
         message: "Send { confirm: true } in request body to confirm deletion",
       });
+    }
+
+    // Verify password if provided (optional for account deletion endpoint)
+    if (password) {
+      const { db } = require("../../config/database");
+      const [users] = await db.query(
+        "SELECT email FROM users WHERE user_id = ?",
+        [userId]
+      );
+
+      if (users && users.length > 0) {
+        const userEmail = users[0].email;
+        const [authRecords] = await db.query(
+          "SELECT password_hash FROM auth WHERE email = ?",
+          [userEmail]
+        );
+
+        if (authRecords && authRecords.length > 0) {
+          const authService = require("../auth/service");
+          const isValid = await authService.verifyPassword(
+            password,
+            authRecords[0].password_hash
+          );
+
+          if (!isValid) {
+            return res.status(401).json({ error: "Invalid password" });
+          }
+        }
+      }
     }
 
     const result = await accountService.deleteAccount(userId);
@@ -220,7 +249,16 @@ const deleteAccount = async (req, res) => {
     res.json({ message: "Account deleted successfully" });
   } catch (error) {
     console.error("Error deleting account:", error);
-    res.status(500).json({ error: "Failed to delete account" });
+    // Return specific error message if available
+    if (error.message) {
+      return res.status(400).json({ 
+        error: error.message || "Failed to delete account" 
+      });
+    }
+    res.status(500).json({ 
+      error: "Failed to delete account",
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined
+    });
   }
 };
 

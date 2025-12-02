@@ -321,3 +321,42 @@ exports.listTeam = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch team data" });
   }
 };
+
+exports.getAvailability = async (req, res) => {
+  try {
+    const staffId = req.user?.staff_id;
+    if (!staffId) {
+      return res.status(401).json({ error: "Staff context missing" });
+    }
+
+    const availability = await staffPortalService.getStaffAvailability(staffId);
+    res.status(200).json({ availability });
+  } catch (err) {
+    console.error("Get staff availability error:", err);
+    res.status(500).json({ error: "Failed to fetch availability" });
+  }
+};
+
+exports.updateAvailability = async (req, res) => {
+  try {
+    const staffId = req.user?.staff_id;
+    if (!staffId) {
+      return res.status(401).json({ error: "Staff context missing" });
+    }
+
+    const { availability } = req.body; // Array of { day_of_week, start_time, end_time, is_available }
+    
+    if (!Array.isArray(availability)) {
+      return res.status(400).json({ error: "Availability must be an array" });
+    }
+
+    const updated = await staffPortalService.updateStaffAvailability(staffId, availability);
+    res.status(200).json({ 
+      message: "Availability updated successfully",
+      availability: updated 
+    });
+  } catch (err) {
+    console.error("Update staff availability error:", err);
+    res.status(500).json({ error: "Failed to update availability" });
+  }
+};

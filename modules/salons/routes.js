@@ -35,10 +35,30 @@ const upload = multer({
 });
 
 // Always define specific routes BEFORE dynamic ones
-// Public endpoint for services (customer view)
+// Services endpoint (authenticated - for salon settings, must be before public)
 router.get(
   "/:salon_id/services",
+  verifyAnyToken,
+  salonController.getSalonServices
+);
+
+// Products endpoint (authenticated - for salon settings, must be before public)
+router.get(
+  "/:salon_id/products",
+  verifyAnyToken,
+  salonController.getSalonProducts
+);
+
+// Public endpoint for services (customer view - must be after authenticated)
+router.get(
+  "/public/:salon_id/services",
   salonController.getSalonServicesPublic
+);
+
+// Public endpoint for products (customer view - for salon page)
+router.get(
+  "/public/:salon_id/products",
+  salonController.getSalonProductsPublic
 );
 
 router.get("/", verifyAnyToken, salonController.getAllSalons);
@@ -86,6 +106,10 @@ router.put("/:salon_id/slot-settings", verifyAnyToken, salonController.updateSal
 router.get("/:salon_id/review-settings", verifyAnyToken, salonController.getSalonReviewSettings);
 router.put("/:salon_id/review-settings", verifyAnyToken, salonController.updateSalonReviewSettings);
 
+// Reviews endpoint (public - for customer view, must be before /:salon_id to avoid route conflicts)
+const reviewController = require("../reviews/controller");
+router.get("/:salon_id/reviews", reviewController.getSalonReviews);
+
 // Operating policies endpoints (must be before /:salon_id to avoid route conflicts)
 router.get("/:salon_id/operating-policies", verifyAnyToken, salonController.getSalonOperatingPolicies);
 router.put("/:salon_id/operating-policies", verifyAnyToken, salonController.updateSalonOperatingPolicies);
@@ -94,6 +118,7 @@ router.put("/:salon_id/operating-policies", verifyAnyToken, salonController.upda
 router.get("/public/:salon_id", salonController.getSalonByIdPublic);
 router.get("/public/:salon_id/business-hours", salonController.getSalonBusinessHoursPublic);
 router.get("/public/:salon_id/booking-policy", salonController.getSalonBookingPolicyPublic);
+router.get("/public/:salon_id/reviews", reviewController.getSalonReviews);
 
 // Salon settings endpoints
 router.get("/:salon_id", verifyAnyToken, salonController.getSalonById);

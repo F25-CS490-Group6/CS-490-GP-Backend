@@ -1,5 +1,5 @@
 const subscriptionService = require("./service");
-const { verifyAnyToken } = require("../../middleware/verifyAnyToken");
+const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
 
 /**
  * POST /api/subscriptions/checkout

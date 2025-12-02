@@ -8,13 +8,26 @@ exports.getAllSalons = async (req, res) => {
   }
   
   try {
-    const { q, page = 1, limit = 50 } = req.query;
+    const { q, page = 1, limit = 50, category, gender, barbershop } = req.query;
     const offset = (page - 1) * limit;
     
+    // Check if user is admin - admins can see all salons
+    const userRole = req.user?.role || req.user?.user_role;
+    const isAdmin = userRole === 'admin';
+    
+    // Map frontend category IDs to database categories
+    const categoryMap = {
+      'haircut': { main: 'Hair', sub: ['Haircuts'] },
+      'coloring': { main: 'Hair', sub: ['Hair Color', 'Hair Coloring'] },
+      'nails': { main: 'Nails', sub: ['Manicure', 'Pedicure', 'Nails'] },
+      'eyebrows': { main: 'Makeup & Beauty', sub: ['Eyebrows'] },
+      'makeup': { main: 'Makeup & Beauty', sub: ['Makeup'] }
+    };
+
     let sql = `
-      SELECT
+      SELECT DISTINCT
         s.salon_id,
-        s.salon_name AS name,
+        s.name AS name,
         s.slug,
         s.address,
         s.city,
@@ -27,14 +40,81 @@ exports.getAllSalons = async (req, res) => {
         u.full_name as owner_name
       FROM salons s
       LEFT JOIN users u ON u.user_id = s.owner_id
-      WHERE s.status = 'active' OR s.status = 'pending'
     `;
 
     const params = [];
+    const conditions = [];
+
+    // Non-admin users only see active or pending salons
+    if (!isAdmin) {
+      conditions.push("(s.status = 'active' OR s.status = 'pending')");
+    }
+
+    // Track if we need to join with services table
+    const needsServiceJoin = category && category !== 'all' && categoryMap[category] || 
+                            gender && (gender === 'men' || gender === 'women') || 
+                            (barbershop === 'true' || barbershop === '1');
+    
+    const needsCategoryJoin = (category && category !== 'all' && categoryMap[category]) || 
+                              (barbershop === 'true' || barbershop === '1');
+
+    // Add service joins if needed
+    if (needsServiceJoin) {
+      sql += `
+        INNER JOIN services sv ON sv.salon_id = s.salon_id AND sv.is_active = 1
+      `;
+      
+      if (needsCategoryJoin) {
+        sql += `
+          INNER JOIN service_categories sc ON sv.category_id = sc.category_id
+          INNER JOIN main_categories mc ON sc.main_category_id = mc.main_category_id
+        `;
+      }
+    }
+
+    // Filter by service category if provided
+    if (category && category !== 'all' && categoryMap[category]) {
+      const catInfo = categoryMap[category];
+      
+      // Match by main category name or sub-category names
+      const categoryConditions = [];
+      categoryConditions.push("mc.name = ?");
+      params.push(catInfo.main);
+      
+      // Also check sub-categories
+      if (catInfo.sub && catInfo.sub.length > 0) {
+        const subPlaceholders = catInfo.sub.map(() => '?').join(',');
+        categoryConditions.push(`sc.name IN (${subPlaceholders})`);
+        params.push(...catInfo.sub);
+      }
+      
+      conditions.push(`(${categoryConditions.join(' OR ')})`);
+    }
+
+    // Filter by gender (men/women) - check service names
+    if (gender && (gender === 'men' || gender === 'women')) {
+      if (gender === 'men') {
+        conditions.push("(sv.custom_name LIKE ? OR sv.custom_name LIKE ?)");
+        params.push('%Men\'s%', '%Men %');
+      } else if (gender === 'women') {
+        conditions.push("(sv.custom_name LIKE ? OR sv.custom_name LIKE ?)");
+        params.push('%Women\'s%', '%Women %');
+      }
+    }
+
+    // Filter by barbershop - salons with Beard & Grooming services
+    if (barbershop === 'true' || barbershop === '1') {
+      conditions.push("(mc.name = ? OR sv.custom_name LIKE ? OR sv.custom_name LIKE ?)");
+      params.push('Beard & Grooming', '%Barber%', '%Men\'s%');
+    }
 
     if (q) {
-      sql += " AND (s.salon_name LIKE ? OR s.description LIKE ? OR s.city LIKE ?)";
+      conditions.push("(s.name LIKE ? OR s.description LIKE ? OR s.city LIKE ?)");
       params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    }
+
+    if (conditions.length > 0) {
+      sql += " WHERE " + conditions.join(" AND ");
     }
     
     sql += " ORDER BY s.created_at DESC LIMIT ? OFFSET ?";
@@ -174,6 +254,82 @@ exports.getSalonServices = async (req, res) => {
   } catch (error) {
     console.error(" getSalonServices error:", error);
     return res.status(500).json({ error: "Failed to fetch salon services" });
+  }
+};
+
+// Get products for a salon (public - for customer view on salon page)
+exports.getSalonProductsPublic = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    if (!salon_id) {
+      return res.status(400).json({ error: "Salon ID required" });
+    }
+
+    const products = await query(
+      `
+      SELECT 
+        product_id,
+        name,
+        category,
+        description,
+        price,
+        stock
+      FROM products
+      WHERE salon_id = ? AND is_active = 1 AND stock > 0
+      ORDER BY category, name;
+      `,
+      [salon_id]
+    );
+
+    if (!products || products.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    return res.status(200).json(products);
+  } catch (error) {
+    console.error("getSalonProductsPublic error:", error);
+    return res.status(500).json({ error: "Failed to fetch salon products" });
+  }
+};
+
+// Get products for a salon (authenticated - for salon settings)
+exports.getSalonProducts = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    if (!salon_id) {
+      return res.status(400).json({ error: "Salon ID required" });
+    }
+
+    const products = await query(
+      `
+      SELECT 
+        product_id,
+        name,
+        category,
+        description,
+        price,
+        stock,
+        reorder_level,
+        sku,
+        supplier_name,
+        is_active,
+        created_at,
+        updated_at
+      FROM products
+      WHERE salon_id = ? AND is_active = 1
+      ORDER BY category, name;
+      `,
+      [salon_id]
+    );
+
+    if (!products || products.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    return res.status(200).json(products);
+  } catch (error) {
+    console.error("getSalonProducts error:", error);
+    return res.status(500).json({ error: "Failed to fetch salon products" });
   }
 };
 
@@ -439,7 +595,7 @@ exports.getSalonByIdPublic = async (req, res) => {
     const salons = await query(
       `SELECT ${selectFields}
       FROM salons s 
-      WHERE s.salon_id = ? AND s.status = 'active'`,
+      WHERE s.salon_id = ? AND (s.status = 'active' OR s.status = 'pending')`,
       [salon_id]
     );
 

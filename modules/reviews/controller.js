@@ -48,15 +48,60 @@ exports.addReviewResponse = async (req, res) => {
 
 /**
  * Get reviews for a salon (public endpoint)
+ * If user is authenticated, include their user_id to show edit/delete options
  */
 exports.getSalonReviews = async (req, res) => {
   try {
     const { salon_id } = req.params;
-    const reviews = await reviewService.getSalonReviews(salon_id);
+    const currentUserId = req.user?.user_id || req.user?.id || null;
+    const reviews = await reviewService.getSalonReviews(salon_id, currentUserId);
     res.json(reviews);
   } catch (err) {
     console.error("Get reviews error:", err);
     res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Update review
+ * PUT /api/reviews/:id
+ */
+exports.updateReview = async (req, res) => {
+  try {
+    const review_id = req.params.id;
+    const user_id = req.user?.user_id || req.user?.id;
+    const { rating, comment } = req.body;
+
+    if (!user_id) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const updatedReview = await reviewService.updateReview(review_id, user_id, { rating, comment });
+    res.json({ message: "Review updated", review: updatedReview });
+  } catch (err) {
+    console.error("Update review error:", err);
+    res.status(500).json({ error: err.message || "Failed to update review" });
+  }
+};
+
+/**
+ * Delete review
+ * DELETE /api/reviews/:id
+ */
+exports.deleteReview = async (req, res) => {
+  try {
+    const review_id = req.params.id;
+    const user_id = req.user?.user_id || req.user?.id;
+
+    if (!user_id) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    await reviewService.deleteReview(review_id, user_id);
+    res.json({ message: "Review deleted" });
+  } catch (err) {
+    console.error("Delete review error:", err);
+    res.status(500).json({ error: err.message || "Failed to delete review" });
   }
 };
 

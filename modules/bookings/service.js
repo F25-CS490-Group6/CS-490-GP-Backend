@@ -2,6 +2,7 @@
 const { db } = require("../../config/database");
 
 exports.getAvailableBarbersAndSlots = async () => {
+  const salonService = require("../salons/service");
   const [barbers] = await db.query(
     `SELECT staff.staff_id, users.full_name, staff.specialization, staff.salon_id
      FROM staff 
@@ -43,8 +44,18 @@ exports.getAvailableBarbersAndSlots = async () => {
         ]
       );
       const [apps] = await db.query(
-        `SELECT * FROM appointments WHERE staff_id = ? AND status = 'booked' 
-         AND scheduled_time BETWEEN ? AND ?`,
+        `SELECT 
+          a.appointment_id,
+          a.staff_id,
+          a.scheduled_time,
+          a.status,
+          COALESCE(SUM(aps.duration), 30) as duration_minutes
+         FROM appointments a
+         LEFT JOIN appointment_services aps ON a.appointment_id = aps.appointment_id
+         WHERE a.staff_id = ? 
+         AND a.status IN ('pending', 'confirmed', 'booked')
+         AND a.scheduled_time BETWEEN ? AND ?
+         GROUP BY a.appointment_id, a.staff_id, a.scheduled_time, a.status`,
         [barber.staff_id, day, nextDay]
       );
       for (const avail of avails) {
@@ -62,10 +73,15 @@ exports.getAvailableBarbersAndSlots = async () => {
         const end = new Date(day);
         end.setHours(endHour, endMin, 0);
 
+      // Get salon slot settings (duration and buffer time)
+      const slotSettings = await salonService.getSalonSlotSettings(barber.salon_id);
+      const slotDuration = slotSettings.slotDuration || 30; // Default to 30 minutes
+      const bufferTime = slotSettings.bufferTime || 0; // Default to 0 minutes
+
       let slot = new Date(start);
 
       while (slot < end) {
-        const slotEnd = new Date(slot.getTime() + 30 * 60000);
+        const slotEnd = new Date(slot.getTime() + slotDuration * 60000);
 
         let blocked = false;
         for (let i = 0; i < timeoffs.length; i++) {
@@ -79,7 +95,16 @@ exports.getAvailableBarbersAndSlots = async () => {
         let booked = false;
         for (let i = 0; i < apps.length; i++) {
           const a = apps[i];
-          if (new Date(a.scheduled_time) <= slot && new Date(a.scheduled_time).getTime() + 30 * 60000 > slot.getTime()) {
+          const appointmentStart = new Date(a.scheduled_time);
+          const appointmentDuration = (a.duration_minutes || slotDuration) * 60000; // Convert minutes to milliseconds
+          const appointmentEnd = new Date(appointmentStart.getTime() + appointmentDuration);
+          
+          // Check if appointment overlaps with slot (including buffer time)
+          // Account for buffer time: slot is blocked if appointment is within buffer time of slot
+          const slotWithBuffer = new Date(slot.getTime() - bufferTime * 60000);
+          const slotEndWithBuffer = new Date(slotEnd.getTime() + bufferTime * 60000);
+          
+          if (appointmentStart < slotEndWithBuffer && appointmentEnd > slotWithBuffer) {
             booked = true;
             break;
           }
@@ -99,7 +124,8 @@ exports.getAvailableBarbersAndSlots = async () => {
           });
         }
 
-        slot = slotEnd;
+        // Move to next slot, accounting for buffer time
+        slot = new Date(slotEnd.getTime() + bufferTime * 60000);
       }
       }
     }
@@ -115,13 +141,208 @@ exports.getAvailableBarbersAndSlots = async () => {
   return allSlots;
 };
 
-exports.checkSlotAvailability = async (staff_id, scheduled_time) => {
-  // Check if there's already a booked appointment at this time
-  const [count] = await db.query(
-    `SELECT COUNT(*) as count FROM appointments 
-     WHERE staff_id = ? AND status = 'booked' AND scheduled_time = ?`,
-    [staff_id, scheduled_time]
+/**
+ * Get available time slots for a specific salon, staff member, date, and service
+ */
+exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) => {
+  const salonService = require("../salons/service");
+  
+  // Parse the date (format: YYYY-MM-DD) as local date, not UTC
+  const dateParts = date.split('-');
+  const selectedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayName = dayNames[selectedDate.getDay()];
+  
+  console.log(`[getAvailableSlots] salon_id: ${salon_id}, staff_id: ${staff_id}, date: ${date}, dayName: ${dayName}`);
+  
+  // Get business hours for the salon
+  const businessHours = await salonService.getSalonBusinessHours(salon_id);
+  const dayHours = businessHours[dayName.toLowerCase()];
+  
+  // If salon is closed on this day, return empty slots
+  // BUT: if staff has availability set, we should still check it (staff might work even if salon is "closed")
+  if (!dayHours || dayHours.closed) {
+    console.log(`[getAvailableSlots] Salon business hours show closed on ${dayName}, checking staff availability...`);
+    // Don't return empty yet - check if staff has availability first
+  }
+  
+  // Get staff availability for this day
+  const [avails] = await db.query(
+    `SELECT * FROM staff_availability 
+     WHERE staff_id = ? AND day_of_week = ? AND is_available = TRUE`,
+    [staff_id, dayName]
   );
+  
+  console.log(`[getAvailableSlots] Found ${avails.length} availability records for staff ${staff_id} on ${dayName}`);
+  
+  // If no staff availability, use business hours
+  let startTime, endTime;
+  if (avails && avails.length > 0) {
+    const avail = avails[0];
+    // Handle TIME format from database (HH:MM:SS) - convert to HH:MM
+    startTime = typeof avail.start_time === 'string' 
+      ? avail.start_time.substring(0, 5) 
+      : avail.start_time;
+    endTime = typeof avail.end_time === 'string'
+      ? avail.end_time.substring(0, 5)
+      : avail.end_time;
+    console.log(`[getAvailableSlots] Using staff availability: ${startTime} - ${endTime}`);
+  } else if (dayHours && dayHours.open && dayHours.close && !dayHours.closed) {
+    startTime = dayHours.open;
+    endTime = dayHours.close;
+    console.log(`[getAvailableSlots] Using business hours: ${startTime} - ${endTime}`);
+  } else {
+    // If salon is closed and no staff availability, return empty
+    if (dayHours && dayHours.closed) {
+      console.log(`[getAvailableSlots] Salon closed and no staff availability - returning empty slots`);
+      return [];
+    }
+    // Default hours if nothing is set
+    startTime = "09:00";
+    endTime = "17:00";
+    console.log(`[getAvailableSlots] Using default hours: ${startTime} - ${endTime}`);
+  }
+  
+  // Get service duration if service_id is provided
+  let serviceDuration = 30; // Default 30 minutes
+  if (service_id) {
+    const [services] = await db.query(
+      "SELECT duration FROM services WHERE service_id = ? AND is_active = 1",
+      [service_id]
+    );
+    if (services && services.length > 0) {
+      serviceDuration = services[0].duration || 30;
+    }
+  }
+  
+  // Get salon slot settings
+  const slotSettings = await salonService.getSalonSlotSettings(salon_id);
+  const slotDuration = slotSettings.slotDuration || 30;
+  const bufferTime = slotSettings.bufferTime || 0;
+  
+  // Use service duration or slot duration, whichever is larger
+  const effectiveDuration = Math.max(serviceDuration, slotDuration);
+  
+  // Get existing appointments for this staff on this date
+  const dayStart = new Date(selectedDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(selectedDate);
+  dayEnd.setHours(23, 59, 59, 999);
+  
+  const [appointments] = await db.query(
+    `SELECT 
+      a.appointment_id,
+      a.scheduled_time,
+      a.status,
+      COALESCE(SUM(aps.duration), ?) as duration_minutes
+     FROM appointments a
+     LEFT JOIN appointment_services aps ON a.appointment_id = aps.appointment_id
+     WHERE a.staff_id = ? 
+     AND a.status IN ('pending', 'confirmed', 'booked')
+     AND a.scheduled_time >= ? AND a.scheduled_time < ?
+     GROUP BY a.appointment_id, a.scheduled_time, a.status`,
+    [effectiveDuration, staff_id, dayStart, dayEnd]
+  );
+  
+  // Get staff time off for this date
+  const [timeoffs] = await db.query(
+    `SELECT * FROM staff_time_off 
+     WHERE staff_id = ? AND status = 'approved' 
+     AND start_datetime < ? AND end_datetime > ?`,
+    [staff_id, dayEnd, dayStart]
+  );
+  
+  // Parse start and end times (handle both HH:MM and HH:MM:SS formats)
+  const startTimeStr = String(startTime).substring(0, 5); // Ensure HH:MM format
+  const startTimeParts = startTimeStr.split(":");
+  const startHour = parseInt(startTimeParts[0]);
+  const startMin = parseInt(startTimeParts[1]);
+  
+  const endTimeStr = String(endTime).substring(0, 5); // Ensure HH:MM format
+  const endTimeParts = endTimeStr.split(":");
+  const endHour = parseInt(endTimeParts[0]);
+  const endMin = parseInt(endTimeParts[1]);
+  
+  const start = new Date(selectedDate);
+  start.setHours(startHour, startMin, 0);
+  
+  const end = new Date(selectedDate);
+  end.setHours(endHour, endMin, 0);
+  
+  // Generate available slots
+  const availableSlots = [];
+  let slot = new Date(start);
+  
+  while (slot < end) {
+    const slotEnd = new Date(slot.getTime() + effectiveDuration * 60000);
+    
+    // Check if slot extends beyond business hours
+    if (slotEnd > end) {
+      break;
+    }
+    
+    // Check if slot is blocked by time off
+    let blocked = false;
+    for (const timeoff of timeoffs) {
+      const timeoffStart = new Date(timeoff.start_datetime);
+      const timeoffEnd = new Date(timeoff.end_datetime);
+      
+      if (slot < timeoffEnd && slotEnd > timeoffStart) {
+        blocked = true;
+        break;
+      }
+    }
+    
+    // Check if slot is booked
+    let booked = false;
+    for (const appointment of appointments) {
+      const appointmentStart = new Date(appointment.scheduled_time);
+      const appointmentDuration = (appointment.duration_minutes || effectiveDuration) * 60000;
+      const appointmentEnd = new Date(appointmentStart.getTime() + appointmentDuration);
+      
+      // Account for buffer time
+      const slotWithBuffer = new Date(slot.getTime() - bufferTime * 60000);
+      const slotEndWithBuffer = new Date(slotEnd.getTime() + bufferTime * 60000);
+      
+      if (appointmentStart < slotEndWithBuffer && appointmentEnd > slotWithBuffer) {
+        booked = true;
+        break;
+      }
+    }
+    
+    // Add slot if available
+    if (!blocked && !booked) {
+      const timeStr = slot.toTimeString();
+      const time = timeStr.substring(0, 5); // HH:MM format
+      availableSlots.push(time);
+    }
+    
+    // Move to next slot (accounting for buffer time)
+    slot = new Date(slotEnd.getTime() + bufferTime * 60000);
+  }
+  
+  console.log(`[getAvailableSlots] Generated ${availableSlots.length} available slots:`, availableSlots);
+  
+  return availableSlots;
+};
+
+exports.checkSlotAvailability = async (staff_id, scheduled_time) => {
+  // Check if there's already an active appointment that overlaps with this time
+  // Include pending, confirmed, and booked statuses as they all block the slot
+  // Check for appointments that start within 30 minutes before or after the requested time
+  // This accounts for typical service durations and prevents double-booking
+  const scheduledTime = new Date(scheduled_time);
+  const windowStart = new Date(scheduledTime.getTime() - 30 * 60000); // 30 min before
+  const windowEnd = new Date(scheduledTime.getTime() + 30 * 60000); // 30 min after
+  
+  const [overlapping] = await db.query(
+    `SELECT COUNT(*) as count FROM appointments a
+     WHERE a.staff_id = ? 
+     AND a.status IN ('pending', 'confirmed', 'booked')
+     AND a.scheduled_time BETWEEN ? AND ?`,
+    [staff_id, windowStart, windowEnd]
+  );
+  
   // Also check for time off that overlaps
   const [timeoffCount] = await db.query(
     `SELECT COUNT(*) as count FROM staff_time_off 
@@ -130,7 +351,7 @@ exports.checkSlotAvailability = async (staff_id, scheduled_time) => {
     [staff_id, scheduled_time, scheduled_time]
   );
   
-  if (count[0].count === 0 && timeoffCount[0].count === 0) {
+  if (overlapping[0].count === 0 && timeoffCount[0].count === 0) {
     return true;
   }
   return false;

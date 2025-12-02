@@ -18,14 +18,87 @@ exports.addReviewResponse = async (review_id, response) => {
 };
 
 /**
- * Get reviews for a salon (public)
+ * Get review by ID
  */
-exports.getSalonReviews = async (salonId) => {
+exports.getReviewById = async (review_id) => {
+  const [reviews] = await db.query(
+    `SELECT r.*, u.full_name AS customer_name, s.name AS salon_name
+     FROM reviews r
+     JOIN users u ON r.user_id = u.user_id
+     LEFT JOIN salons s ON r.salon_id = s.salon_id
+     WHERE r.review_id = ?`,
+    [review_id]
+  );
+  return reviews.length > 0 ? reviews[0] : null;
+};
+
+/**
+ * Update review
+ */
+exports.updateReview = async (review_id, user_id, updates) => {
+  const { rating, comment } = updates;
+  
+  // Verify user owns the review
+  const review = await exports.getReviewById(review_id);
+  if (!review || review.user_id !== user_id) {
+    throw new Error("Not authorized to update this review");
+  }
+
+  const updateFields = [];
+  const values = [];
+
+  if (rating !== undefined) {
+    if (rating < 1 || rating > 5) {
+      throw new Error("Rating must be between 1 and 5");
+    }
+    updateFields.push("rating = ?");
+    values.push(rating);
+  }
+
+  if (comment !== undefined) {
+    updateFields.push("comment = ?");
+    values.push(comment);
+  }
+
+  if (updateFields.length === 0) {
+    throw new Error("No fields to update");
+  }
+
+  values.push(review_id);
+  await db.query(
+    `UPDATE reviews SET ${updateFields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE review_id = ?`,
+    values
+  );
+
+  return exports.getReviewById(review_id);
+};
+
+/**
+ * Delete review
+ */
+exports.deleteReview = async (review_id, user_id) => {
+  // Verify user owns the review
+  const review = await exports.getReviewById(review_id);
+  if (!review || review.user_id !== user_id) {
+    throw new Error("Not authorized to delete this review");
+  }
+
+  await db.query(`DELETE FROM reviews WHERE review_id = ?`, [review_id]);
+  return { success: true };
+};
+
+/**
+ * Get reviews for a salon (public)
+ * Optionally include user_id if provided (for authenticated users to see their own reviews)
+ */
+exports.getSalonReviews = async (salonId, currentUserId = null) => {
   const [reviews] = await db.query(
     `SELECT 
+      r.review_id,
       r.rating,
       r.comment,
       r.created_at,
+      r.user_id,
       u.full_name as customer_name
     FROM reviews r
     JOIN users u ON r.user_id = u.user_id

@@ -135,7 +135,11 @@ async function getAppointmentsByUser(userId) {
     ORDER BY a.scheduled_time DESC
   `;
   const [rows] = await db.query(sql, [userId]);
-  return rows;
+  // Ensure price is a number for all appointments (MySQL decimal can be returned as string)
+  return rows.map(row => ({
+    ...row,
+    price: Number(row.price) || 0
+  }));
 }
 
 /**
@@ -167,6 +171,8 @@ async function getAppointmentById(appointmentId) {
   if (!rows.length) return null;
 
   const appointment = rows[0];
+  // Ensure price is a number (MySQL decimal can be returned as string)
+  appointment.price = Number(appointment.price) || 0;
   appointment.services = await getAppointmentServices(appointmentId);
   return appointment;
 }

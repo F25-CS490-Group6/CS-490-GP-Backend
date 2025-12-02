@@ -66,16 +66,31 @@ async function getSalonBusinessHours(salonId) {
   }
 
   const businessHours = rows[0].business_hours;
-  if (!businessHours) {
+  
+  // Handle null, undefined, or empty string
+  if (!businessHours || businessHours === '' || businessHours === 'null') {
     return getDefaultBusinessHours();
   }
 
-  try {
-    return JSON.parse(businessHours);
-  } catch (error) {
-    console.error("Error parsing business hours:", error);
-    return getDefaultBusinessHours();
+  // If it's already an object, return it directly
+  if (typeof businessHours === 'object') {
+    return businessHours;
   }
+
+  // If it's a string, try to parse it
+  if (typeof businessHours === 'string') {
+    try {
+      const parsed = JSON.parse(businessHours);
+      return parsed;
+    } catch (error) {
+      console.error("Error parsing business hours:", error);
+      console.error("Business hours value:", businessHours);
+      return getDefaultBusinessHours();
+    }
+  }
+
+  // Fallback to default
+  return getDefaultBusinessHours();
 }
 
 /**
@@ -84,25 +99,13 @@ async function getSalonBusinessHours(salonId) {
 async function updateSalonBusinessHours(salonId, businessHours) {
   const businessHoursJson = JSON.stringify(businessHours);
 
-  // Check if salon_settings exists
-  const [existing] = await db.query(
-    `SELECT salon_id FROM salon_settings WHERE salon_id = ?`,
-    [salonId]
+  // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
+  await db.query(
+    `INSERT INTO salon_settings (salon_id, business_hours) 
+     VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE business_hours = VALUES(business_hours)`,
+    [salonId, businessHoursJson]
   );
-
-  if (existing && existing.length > 0) {
-    // Update existing
-    await db.query(
-      `UPDATE salon_settings SET business_hours = ? WHERE salon_id = ?`,
-      [businessHoursJson, salonId]
-    );
-  } else {
-    // Create new
-    await db.query(
-      `INSERT INTO salon_settings (salon_id, business_hours) VALUES (?, ?)`,
-      [salonId, businessHoursJson]
-    );
-  }
 
   return { success: true };
 }
@@ -154,25 +157,13 @@ async function getSalonNotificationSettings(salonId) {
 async function updateSalonNotificationSettings(salonId, notificationSettings) {
   const notificationSettingsJson = JSON.stringify(notificationSettings);
 
-  // Check if salon_settings exists
-  const [existing] = await db.query(
-    `SELECT salon_id FROM salon_settings WHERE salon_id = ?`,
-    [salonId]
+  // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
+  await db.query(
+    `INSERT INTO salon_settings (salon_id, notification_settings) 
+     VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE notification_settings = VALUES(notification_settings)`,
+    [salonId, notificationSettingsJson]
   );
-
-  if (existing && existing.length > 0) {
-    // Update existing
-    await db.query(
-      `UPDATE salon_settings SET notification_settings = ? WHERE salon_id = ?`,
-      [notificationSettingsJson, salonId]
-    );
-  } else {
-    // Create new
-    await db.query(
-      `INSERT INTO salon_settings (salon_id, notification_settings) VALUES (?, ?)`,
-      [salonId, notificationSettingsJson]
-    );
-  }
 
   return { success: true };
 }
@@ -215,25 +206,13 @@ async function getSalonAmenities(salonId) {
 async function updateSalonAmenities(salonId, amenities) {
   const amenitiesJson = JSON.stringify(amenities);
 
-  // Check if salon_settings exists
-  const [existing] = await db.query(
-    `SELECT salon_id FROM salon_settings WHERE salon_id = ?`,
-    [salonId]
+  // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
+  await db.query(
+    `INSERT INTO salon_settings (salon_id, amenities) 
+     VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE amenities = VALUES(amenities)`,
+    [salonId, amenitiesJson]
   );
-
-  if (existing && existing.length > 0) {
-    // Update existing
-    await db.query(
-      `UPDATE salon_settings SET amenities = ? WHERE salon_id = ?`,
-      [amenitiesJson, salonId]
-    );
-  } else {
-    // Create new
-    await db.query(
-      `INSERT INTO salon_settings (salon_id, amenities) VALUES (?, ?)`,
-      [salonId, amenitiesJson]
-    );
-  }
 
   return { success: true };
 }
@@ -270,37 +249,22 @@ async function getSalonBookingSettings(salonId) {
 async function updateSalonBookingSettings(salonId, bookingSettings) {
   const { cancellationPolicy, advanceBookingDays, requireDeposit, depositAmount } = bookingSettings;
 
-  // Check if salon_settings exists
-  const [existing] = await db.query(
-    `SELECT salon_id FROM salon_settings WHERE salon_id = ?`,
-    [salonId]
-  );
+  const policy = cancellationPolicy || null;
+  const days = advanceBookingDays || 30;
+  const deposit = requireDeposit === true || requireDeposit === 1 ? 1 : 0;
+  const amount = depositAmount || 0;
 
-  if (existing && existing.length > 0) {
-    // Update existing
-    await db.query(
-      `UPDATE salon_settings SET cancellation_policy = ?, auto_complete_after = ?, require_deposit = ?, deposit_amount = ? WHERE salon_id = ?`,
-      [
-        cancellationPolicy || null,
-        advanceBookingDays || 30,
-        requireDeposit === true || requireDeposit === 1 ? 1 : 0,
-        depositAmount || 0,
-        salonId
-      ]
-    );
-  } else {
-    // Create new
-    await db.query(
-      `INSERT INTO salon_settings (salon_id, cancellation_policy, auto_complete_after, require_deposit, deposit_amount) VALUES (?, ?, ?, ?, ?)`,
-      [
-        salonId,
-        cancellationPolicy || null,
-        advanceBookingDays || 30,
-        requireDeposit === true || requireDeposit === 1 ? 1 : 0,
-        depositAmount || 0
-      ]
-    );
-  }
+  // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
+  await db.query(
+    `INSERT INTO salon_settings (salon_id, cancellation_policy, auto_complete_after, require_deposit, deposit_amount) 
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE 
+       cancellation_policy = VALUES(cancellation_policy),
+       auto_complete_after = VALUES(auto_complete_after),
+       require_deposit = VALUES(require_deposit),
+       deposit_amount = VALUES(deposit_amount)`,
+    [salonId, policy, days, deposit, amount]
+  );
 
   return { success: true };
 }
@@ -335,32 +299,20 @@ async function getSalonLoyaltySettings(salonId) {
 async function updateSalonLoyaltySettings(salonId, loyaltySettings) {
   const { loyaltyEnabled, pointsPerVisit, redeemRate } = loyaltySettings;
 
-  const [existing] = await db.query(
-    `SELECT salon_id FROM salon_settings WHERE salon_id = ?`,
-    [salonId]
-  );
+  const enabled = loyaltyEnabled === true || loyaltyEnabled === 1 ? 1 : 0;
+  const points = pointsPerVisit || 10;
+  const rate = redeemRate || 100;
 
-  if (existing && existing.length > 0) {
-    await db.query(
-      `UPDATE salon_settings SET loyalty_enabled = ?, points_per_visit = ?, redeem_rate = ? WHERE salon_id = ?`,
-      [
-        loyaltyEnabled === true || loyaltyEnabled === 1 ? 1 : 0,
-        pointsPerVisit || 10,
-        redeemRate || 100,
-        salonId
-      ]
-    );
-  } else {
-    await db.query(
-      `INSERT INTO salon_settings (salon_id, loyalty_enabled, points_per_visit, redeem_rate) VALUES (?, ?, ?, ?)`,
-      [
-        salonId,
-        loyaltyEnabled === true || loyaltyEnabled === 1 ? 1 : 0,
-        pointsPerVisit || 10,
-        redeemRate || 100
-      ]
-    );
-  }
+  // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
+  await db.query(
+    `INSERT INTO salon_settings (salon_id, loyalty_enabled, points_per_visit, redeem_rate) 
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE 
+       loyalty_enabled = VALUES(loyalty_enabled),
+       points_per_visit = VALUES(points_per_visit),
+       redeem_rate = VALUES(redeem_rate)`,
+    [salonId, enabled, points, rate]
+  );
 
   return { success: true };
 }
@@ -395,32 +347,20 @@ async function getSalonSlotSettings(salonId) {
 async function updateSalonSlotSettings(salonId, slotSettings) {
   const { slotDuration, bufferTime, minAdvanceBookingHours } = slotSettings;
 
-  const [existing] = await db.query(
-    `SELECT salon_id FROM salon_settings WHERE salon_id = ?`,
-    [salonId]
-  );
+  const duration = slotDuration || 30;
+  const buffer = bufferTime || 0;
+  const minHours = minAdvanceBookingHours || 2;
 
-  if (existing && existing.length > 0) {
-    await db.query(
-      `UPDATE salon_settings SET slot_duration = ?, buffer_time = ?, min_advance_booking_hours = ? WHERE salon_id = ?`,
-      [
-        slotDuration || 30,
-        bufferTime || 0,
-        minAdvanceBookingHours || 2,
-        salonId
-      ]
-    );
-  } else {
-    await db.query(
-      `INSERT INTO salon_settings (salon_id, slot_duration, buffer_time, min_advance_booking_hours) VALUES (?, ?, ?, ?)`,
-      [
-        salonId,
-        slotDuration || 30,
-        bufferTime || 0,
-        minAdvanceBookingHours || 2
-      ]
-    );
-  }
+  // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
+  await db.query(
+    `INSERT INTO salon_settings (salon_id, slot_duration, buffer_time, min_advance_booking_hours) 
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE 
+       slot_duration = VALUES(slot_duration),
+       buffer_time = VALUES(buffer_time),
+       min_advance_booking_hours = VALUES(min_advance_booking_hours)`,
+    [salonId, duration, buffer, minHours]
+  );
 
   return { success: true };
 }
@@ -455,32 +395,20 @@ async function getSalonReviewSettings(salonId) {
 async function updateSalonReviewSettings(salonId, reviewSettings) {
   const { autoRequestReviews, reviewRequestTiming, publicReviewsEnabled } = reviewSettings;
 
-  const [existing] = await db.query(
-    `SELECT salon_id FROM salon_settings WHERE salon_id = ?`,
-    [salonId]
-  );
+  const autoRequest = autoRequestReviews === true || autoRequestReviews === 1 ? 1 : 0;
+  const timing = reviewRequestTiming || 24;
+  const publicEnabled = publicReviewsEnabled === true || publicReviewsEnabled === 1 ? 1 : 0;
 
-  if (existing && existing.length > 0) {
-    await db.query(
-      `UPDATE salon_settings SET auto_request_reviews = ?, review_request_timing = ?, public_reviews_enabled = ? WHERE salon_id = ?`,
-      [
-        autoRequestReviews === true || autoRequestReviews === 1 ? 1 : 0,
-        reviewRequestTiming || 24,
-        publicReviewsEnabled === true || publicReviewsEnabled === 1 ? 1 : 0,
-        salonId
-      ]
-    );
-  } else {
-    await db.query(
-      `INSERT INTO salon_settings (salon_id, auto_request_reviews, review_request_timing, public_reviews_enabled) VALUES (?, ?, ?, ?)`,
-      [
-        salonId,
-        autoRequestReviews === true || autoRequestReviews === 1 ? 1 : 0,
-        reviewRequestTiming || 24,
-        publicReviewsEnabled === true || publicReviewsEnabled === 1 ? 1 : 0
-      ]
-    );
-  }
+  // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
+  await db.query(
+    `INSERT INTO salon_settings (salon_id, auto_request_reviews, review_request_timing, public_reviews_enabled) 
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE 
+       auto_request_reviews = VALUES(auto_request_reviews),
+       review_request_timing = VALUES(review_request_timing),
+       public_reviews_enabled = VALUES(public_reviews_enabled)`,
+    [salonId, autoRequest, timing, publicEnabled]
+  );
 
   return { success: true };
 }
@@ -515,32 +443,16 @@ async function getSalonOperatingPolicies(salonId) {
 async function updateSalonOperatingPolicies(salonId, policies) {
   const { refundPolicy, lateArrivalPolicy, noShowPolicy } = policies;
 
-  const [existing] = await db.query(
-    `SELECT salon_id FROM salon_settings WHERE salon_id = ?`,
-    [salonId]
+  // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
+  await db.query(
+    `INSERT INTO salon_settings (salon_id, refund_policy, late_arrival_policy, no_show_policy) 
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE 
+       refund_policy = VALUES(refund_policy),
+       late_arrival_policy = VALUES(late_arrival_policy),
+       no_show_policy = VALUES(no_show_policy)`,
+    [salonId, refundPolicy || null, lateArrivalPolicy || null, noShowPolicy || null]
   );
-
-  if (existing && existing.length > 0) {
-    await db.query(
-      `UPDATE salon_settings SET refund_policy = ?, late_arrival_policy = ?, no_show_policy = ? WHERE salon_id = ?`,
-      [
-        refundPolicy || null,
-        lateArrivalPolicy || null,
-        noShowPolicy || null,
-        salonId
-      ]
-    );
-  } else {
-    await db.query(
-      `INSERT INTO salon_settings (salon_id, refund_policy, late_arrival_policy, no_show_policy) VALUES (?, ?, ?, ?)`,
-      [
-        salonId,
-        refundPolicy || null,
-        lateArrivalPolicy || null,
-        noShowPolicy || null
-      ]
-    );
-  }
 
   return { success: true };
 }

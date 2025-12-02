@@ -2,14 +2,14 @@
 const express = require("express");
 const router = express.Router();
 const shopController = require("./controller");
-const { verifyCustomJwt } = require("../../middleware/verifyCustomJwt");
+const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
 
-router.post("/add-product", verifyCustomJwt, shopController.addProduct);
-router.put("/update-product/:product_id", verifyCustomJwt, shopController.updateProduct);
+router.post("/add-product", verifyAnyToken, shopController.addProduct);
+router.put("/update-product/:product_id", verifyAnyToken, shopController.updateProduct);
 router.get("/products/:salon_id", shopController.getSalonProducts);
-router.post("/add-to-cart", verifyCustomJwt, shopController.addToCart);
-router.get("/cart", verifyCustomJwt, shopController.getCart);
-router.post("/checkout", verifyCustomJwt, shopController.checkoutCart);
+router.post("/add-to-cart", verifyAnyToken, shopController.addToCart);
+router.get("/cart", verifyAnyToken, shopController.getCart);
+router.post("/checkout", verifyAnyToken, shopController.checkoutCart);
 
 module.exports = router;
 

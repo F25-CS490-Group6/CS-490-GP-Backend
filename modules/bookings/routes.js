@@ -12,6 +12,14 @@ router.get(
   bookingController.getAvailableBarbersAndSlots
 );
 
+// Customers: Get available time slots for specific salon/staff/date/service
+const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
+router.get(
+  "/slots",
+  verifyAnyToken,
+  bookingController.getAvailableSlots
+);
+
 // Book appointment (Customer)
 router.post("/book", verifyCustomJwt, bookingController.bookAppointment);
 

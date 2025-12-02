@@ -780,15 +780,145 @@ exports.deleteAccount = async (req, res) => {
     }
 
     // Delete user (cascade will handle related records)
-    const affected = await userService.deleteUser(userId);
+    try {
+      const affected = await userService.deleteUser(userId);
 
-    if (affected === 0) {
-      return res.status(404).json({ error: "User not found" });
+      if (affected === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ message: "Account deleted successfully" });
+    } catch (deleteError) {
+      console.error("Error deleting user:", deleteError);
+      // Return specific error message if available
+      if (deleteError.message) {
+        return res.status(400).json({ 
+          error: deleteError.message || "Failed to delete account" 
+        });
+      }
+      throw deleteError; // Re-throw to be caught by outer catch
     }
-
-    res.json({ message: "Account deleted successfully" });
   } catch (error) {
     console.error("Error deleting account:", error);
-    res.status(500).json({ error: "Failed to delete account" });
+    res.status(500).json({ 
+      error: error.message || "Failed to delete account",
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined
+    });
+  }
+};
+
+/**
+ * SETUP ADMIN (First-time admin creation)
+ * POST /api/auth/setup-admin
+ * Allows creating the first admin user or upgrading existing user to admin
+ * Optional: Requires ADMIN_SETUP_TOKEN in env for security
+ */
+exports.setupAdmin = async (req, res) => {
+  try {
+    const { email, password, full_name, phone, setup_token } = req.body;
+
+    if (!email || !password || !full_name) {
+      return res.status(400).json({ 
+        error: "Email, password, and full name are required" 
+      });
+    }
+
+    // Check if setup token is required and valid (if ADMIN_SETUP_TOKEN is set in env)
+    if (process.env.ADMIN_SETUP_TOKEN) {
+      if (!setup_token || setup_token !== process.env.ADMIN_SETUP_TOKEN) {
+        return res.status(403).json({ 
+          error: "Invalid setup token. Admin setup requires a valid token." 
+        });
+      }
+    }
+
+    // Check if any admin already exists
+    const [existingAdmins] = await db.query(
+      "SELECT user_id FROM users WHERE user_role = 'admin' LIMIT 1"
+    );
+
+    // If ADMIN_SETUP_TOKEN is not set, only allow setup if no admins exist
+    if (!process.env.ADMIN_SETUP_TOKEN && existingAdmins.length > 0) {
+      return res.status(403).json({ 
+        error: "Admin already exists. Please use the admin login or contact support." 
+      });
+    }
+
+    // Check if user with this email already exists
+    const [existingUser] = await db.query(
+      "SELECT user_id, user_role, full_name FROM users WHERE email = ?",
+      [email]
+    );
+
+    if (existingUser.length > 0) {
+      // If user exists and is not admin, update to admin
+      if (existingUser[0].user_role !== 'admin') {
+        await db.query(
+          "UPDATE users SET user_role = 'admin' WHERE user_id = ?",
+          [existingUser[0].user_id]
+        );
+        
+        // Update password if provided
+        if (password) {
+          await authService.upsertPassword(existingUser[0].user_id, email, password);
+        }
+
+        const token = authService.generateAppJwt({
+          user_id: existingUser[0].user_id,
+          email,
+          role: 'admin'
+        });
+
+        return res.status(200).json({
+          message: "User upgraded to admin successfully",
+          token,
+          user: {
+            user_id: existingUser[0].user_id,
+            email,
+            full_name: existingUser[0].full_name || full_name,
+            role: 'admin'
+          }
+        });
+      } else {
+        return res.status(400).json({ 
+          error: "User with this email is already an admin" 
+        });
+      }
+    }
+
+    // Create new admin user
+    const phoneToSave = phone || "0000000000";
+    const userId = await authService.createUser(full_name, phoneToSave, email, 'admin');
+    
+    // Set password
+    await authService.upsertPassword(userId, email, password);
+
+    const token = authService.generateAppJwt({
+      user_id: userId,
+      email,
+      role: 'admin'
+    });
+
+    res.status(201).json({
+      message: "Admin account created successfully",
+      token,
+      user: {
+        user_id: userId,
+        email,
+        full_name,
+        role: 'admin'
+      }
+    });
+  } catch (err) {
+    console.error("Error setting up admin:", err);
+    
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+    
+    res.status(500).json({ 
+      error: "Server error while setting up admin",
+      message: err.message 
+    });
   }
 };

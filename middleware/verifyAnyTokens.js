@@ -34,7 +34,7 @@ exports.verifyAnyToken = async (req, res, next) => {
 
       const [rows] = await db.query(
         `
-        SELECT u.user_id, u.email, u.user_role, u.salon_id, st.salon_id as staff_salon_id
+        SELECT u.user_id, u.email, u.user_role, u.salon_id, st.staff_id, st.salon_id as staff_salon_id
         FROM users u
         LEFT JOIN staff st ON st.user_id = u.user_id AND st.is_active = 1
         WHERE u.user_id = ?
@@ -47,11 +47,15 @@ exports.verifyAnyToken = async (req, res, next) => {
       // For owners: use u.salon_id, for staff: use staff_salon_id, fallback to u.salon_id
       const salonId = userRecord.staff_salon_id || userRecord.salon_id || decoded.salon_id || null;
       
+      // Get staff_id from token (if present) or from database
+      const staffId = decoded.staff_id || userRecord.staff_id || null;
+      
       req.user = {
         user_id: decoded.user_id,
-        email: decoded.email,
-        role: decoded.role,
+        email: decoded.email || userRecord.email,
+        role: decoded.role || userRecord.user_role,
         salon_id: salonId,
+        staff_id: staffId,
       };
 
       return next();
@@ -67,7 +71,7 @@ exports.verifyAnyToken = async (req, res, next) => {
 
       const [rows] = await db.query(
         `
-        SELECT u.user_id, u.email, u.user_role, u.salon_id, st.salon_id as staff_salon_id
+        SELECT u.user_id, u.email, u.user_role, u.salon_id, st.staff_id, st.salon_id as staff_salon_id
         FROM users u
         LEFT JOIN staff st ON st.user_id = u.user_id AND st.is_active = 1
         WHERE u.firebase_uid = ? OR LOWER(u.email) = LOWER(?)
@@ -91,6 +95,7 @@ exports.verifyAnyToken = async (req, res, next) => {
         email: user.email,
         role: user.user_role,
         salon_id: salonId,
+        staff_id: user.staff_id || null,
       };
 
       return next();

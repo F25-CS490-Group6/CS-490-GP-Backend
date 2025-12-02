@@ -722,6 +722,53 @@ async function listTeamMembers({ salonId, limit = 3 }) {
   }));
 }
 
+async function getStaffAvailability(staffId) {
+  const [rows] = await db.query(
+    `SELECT availability_id, day_of_week, start_time, end_time, is_available
+     FROM staff_availability
+     WHERE staff_id = ?
+     ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')`,
+    [staffId]
+  );
+  return rows;
+}
+
+async function updateStaffAvailability(staffId, availability) {
+  // Delete existing availability for this staff
+  await db.query(
+    `DELETE FROM staff_availability WHERE staff_id = ?`,
+    [staffId]
+  );
+
+  // Insert new availability
+  if (availability && availability.length > 0) {
+    const validAvailability = availability.filter(
+      avail => avail.day_of_week && avail.start_time && avail.end_time && avail.is_available
+    );
+
+    if (validAvailability.length > 0) {
+      // Use individual inserts for better compatibility
+      for (const avail of validAvailability) {
+        await db.query(
+          `INSERT INTO staff_availability (staff_id, day_of_week, start_time, end_time, is_available)
+           VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE start_time = VALUES(start_time), end_time = VALUES(end_time), is_available = VALUES(is_available)`,
+          [
+            staffId,
+            avail.day_of_week,
+            avail.start_time,
+            avail.end_time,
+            avail.is_available !== false ? 1 : 0
+          ]
+        );
+      }
+    }
+  }
+
+  // Return updated availability
+  return await getStaffAvailability(staffId);
+}
+
 module.exports = {
   getStaffProfile,
   getDashboardSummary,
@@ -733,4 +780,6 @@ module.exports = {
   listTopCustomers,
   listRetailHighlights,
   listTeamMembers,
+  getStaffAvailability,
+  updateStaffAvailability,
 };
