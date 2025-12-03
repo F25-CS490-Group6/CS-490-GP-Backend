@@ -28,6 +28,9 @@ const { db, testConnection, closePool } = require("./config/database");
 
 const app = express();
 // Support single FRONTEND_URL plus optional comma-separated FRONTEND_URLS for deployments
+// For production, set FRONTEND_URL or FRONTEND_URLS environment variables
+// Example: FRONTEND_URL=https://main.d9mc2v9b3gxgw.amplifyapp.com
+// Or for multiple origins: FRONTEND_URLS=https://origin1.com,https://origin2.com
 const additionalOrigins = (process.env.FRONTEND_URLS || "")
   .split(",")
   .map((origin) => origin.trim())
@@ -36,6 +39,7 @@ const additionalOrigins = (process.env.FRONTEND_URLS || "")
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   ...additionalOrigins,
+  // Local development origins only
   "http://localhost:3000",
   "http://127.0.0.1:3000",
   "http://localhost:3001",
@@ -45,12 +49,24 @@ const allowedOrigins = [
   "http://127.0.0.1:3002",
   "http://localhost:3003",
   "http://127.0.0.1:3003",
+  // Production origins must be set via FRONTEND_URL or FRONTEND_URLS environment variables
 ].filter(Boolean);
+
+// Log allowed origins on startup
+if (process.env.NODE_ENV !== "production") {
+  console.log("CORS allowed origins:", allowedOrigins);
+}
 
 // Serve uploaded files statically
 app.use("/uploads", express.static("public/uploads"));
 
-app.use(helmet());
+// Configure helmet to not interfere with CORS
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 // Stripe webhooks need raw body - must be BEFORE express.json()
 app.use(
@@ -70,7 +86,6 @@ app.use(
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow server-to-server, Postman, curl (no origin)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
@@ -81,6 +96,8 @@ app.use(
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 
