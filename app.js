@@ -57,8 +57,25 @@ if (process.env.NODE_ENV !== "production") {
   console.log("CORS allowed origins:", allowedOrigins);
 }
 
-// Serve uploaded files statically
-app.use("/uploads", express.static("public/uploads"));
+// Serve uploaded files statically with proper headers for Next.js Image optimization
+app.use("/uploads", express.static("public/uploads", {
+  setHeaders: (res, path) => {
+    // Allow Next.js Image optimization to fetch images
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    // Ensure proper content type
+    if (path.endsWith(".png")) {
+      res.setHeader("Content-Type", "image/png");
+    } else if (path.endsWith(".jpg") || path.endsWith(".jpeg")) {
+      res.setHeader("Content-Type", "image/jpeg");
+    } else if (path.endsWith(".gif")) {
+      res.setHeader("Content-Type", "image/gif");
+    } else if (path.endsWith(".webp")) {
+      res.setHeader("Content-Type", "image/webp");
+    }
+  }
+}));
 
 // Configure helmet to not interfere with CORS
 app.use(
