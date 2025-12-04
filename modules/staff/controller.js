@@ -186,12 +186,17 @@ exports.addStaff = async (req, res) => {
     }
 
     // Step 2: Create staff record + unique staff code
+    // Convert specialization array to comma-separated string if it's an array
+    const specializationStr = Array.isArray(specialization) 
+      ? specialization.join(", ") 
+      : specialization;
+    
     const newStaff = await staffService.addStaff(
       finalSalonId,
       user_id,
       staff_role,
       staff_role_id,
-      specialization
+      specializationStr
     );
     const { insertId, staffCode } = newStaff;
 
@@ -271,6 +276,11 @@ exports.editStaff = async (req, res) => {
       if (existing.length > 0) finalUserId = existing[0].user_id;
     }
 
+    // Convert specialization array to comma-separated string if it's an array
+    const specializationStr = Array.isArray(specialization) 
+      ? specialization.join(", ") 
+      : specialization;
+    
     // Call updated service (updates both staff + user)
     await staffService.editStaff(
       staff_id,
@@ -278,7 +288,7 @@ exports.editStaff = async (req, res) => {
       finalUserId,
       staff_role,
       staff_role_id,
-      specialization,
+      specializationStr,
       full_name,
       phone,
       email
