@@ -1,6 +1,23 @@
 //bookings/controller.js
 const bookingService = require("./service");
 
+// Public endpoint: Get available time slots for booking
+exports.getAvailableSlots = async (req, res) => {
+  try {
+    const { salon_id, staff_id, date, service_id } = req.query;
+
+    if (!salon_id || !staff_id || !date) {
+      return res.status(400).json({ error: "salon_id, staff_id, and date are required" });
+    }
+
+    const slots = await bookingService.getAvailableSlots(salon_id, staff_id, date, service_id);
+    res.json({ slots });
+  } catch (err) {
+    console.error("Get available slots error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.getAvailableBarbersAndSlots = async (req, res) => {
   try {
     const barbers = await bookingService.getAvailableBarbersAndSlots();

@@ -9,6 +9,7 @@ const authRoutes = require("./modules/auth/routes");
 const staffRoutes = require("./modules/staff/routes");
 const userRoutes = require("./modules/users/routes");
 const appointmentRoutes = require("./modules/appointments/routes");
+const bookingRoutes = require("./modules/bookings/routes");
 const analyticsRoutes = require("./modules/analytics/routes");
 const salonRoutes = require("./modules/salons/routes");
 const photoRoutes = require("./modules/photos/routes");
@@ -21,8 +22,9 @@ const reviewRoutes = require("./modules/reviews/routes");
 const staffPortalRoutes = require("./modules/staffportal/routes");
 const paymentRoutes = require("./modules/payments/routes");
 const adminRoutes = require("./modules/admins/routes");
-const bookingRoutes = require("./modules/bookings/routes");
 const webhookController = require("./modules/payments/webhooks");
+const shopRoutes = require("./modules/shop/routes");
+const loyaltyRoutes = require("./modules/loyalty/routes");
 const subscriptionRoutes = require("./modules/subscriptions/routes");
 const { db, testConnection, closePool } = require("./config/database");
 
@@ -133,6 +135,7 @@ app.use("/api/staff", staffRoutes);
 app.use("/api/staff-portal", staffPortalRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/appointments", appointmentRoutes);
+app.use("/api/bookings", bookingRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/photos", photoRoutes);
 app.use("/api/account", accountRoutes);
@@ -143,16 +146,9 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/admins", adminRoutes);
-app.use("/api/bookings", bookingRoutes);
-const shopRoutes = require("./modules/shop/routes");
 app.use("/api/shop", shopRoutes);
+app.use("/api/loyalty", loyaltyRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
-
-// Handle frontend calling /reviews instead of /api/reviews (missing /api prefix)
-// This must be AFTER CORS middleware so CORS headers are included
-const reviewController = require("./modules/reviews/controller");
-app.get("/reviews/salon/:salon_id", reviewController.getSalonReviews);
-app.get("/reviews/:salon_id", reviewController.getSalonReviews);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });

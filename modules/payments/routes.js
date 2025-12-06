@@ -8,6 +8,9 @@ const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
 // Create checkout and send payment email (authenticated)
 router.post("/checkout", verifyAnyToken, paymentController.createCheckout);
 
+// Create unified checkout for cart with products + services (authenticated)
+router.post("/unified-checkout", verifyAnyToken, paymentController.createUnifiedCheckout);
+
 // Get salon payments (authenticated)
 router.get("/salon/:salon_id", verifyAnyToken, paymentController.getPaymentsForSalon);
 

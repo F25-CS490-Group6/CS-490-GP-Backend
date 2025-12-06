@@ -49,16 +49,101 @@ exports.redeemLoyaltyPoints = async (user_id, salon_id, points_to_redeem) => {
   );
 };
 
-exports.setLoyaltyConfig = async (salon_id, points_per_visit, redeem_rate) => {
-  const configData = { points_per_visit: points_per_visit, redeem_rate: redeem_rate };
-  const configString = JSON.stringify(configData);
-  const policyValue = 'loyalty:' + configString;
-  
+/**
+ * Set or update loyalty configuration for a salon
+ */
+exports.setLoyaltyConfig = async (salon_id, config) => {
+  const {
+    loyalty_enabled = true,
+    points_per_dollar = 1.00,
+    points_per_visit = 10,
+    redeem_rate = 0.01,
+    min_points_redeem = 100
+  } = config;
+
   await db.query(
-    `INSERT INTO salon_settings (salon_id, cancellation_policy, auto_complete_after)
-     VALUES (?, ?, 120)
-     ON DUPLICATE KEY UPDATE cancellation_policy = ?`,
-    [salon_id, policyValue, policyValue]
+    `INSERT INTO salon_settings (salon_id, loyalty_enabled, points_per_dollar, points_per_visit, redeem_rate, min_points_redeem)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       loyalty_enabled = VALUES(loyalty_enabled),
+       points_per_dollar = VALUES(points_per_dollar),
+       points_per_visit = VALUES(points_per_visit),
+       redeem_rate = VALUES(redeem_rate),
+       min_points_redeem = VALUES(min_points_redeem)`,
+    [salon_id, loyalty_enabled, points_per_dollar, points_per_visit, redeem_rate, min_points_redeem]
   );
+};
+
+/**
+ * Get loyalty configuration for a salon
+ */
+exports.getLoyaltyConfig = async (salon_id) => {
+  const [rows] = await db.query(
+    `SELECT loyalty_enabled, points_per_dollar, points_per_visit, redeem_rate, min_points_redeem
+     FROM salon_settings
+     WHERE salon_id = ?`,
+    [salon_id]
+  );
+
+  if (rows[0]) {
+    return rows[0];
+  }
+
+  // Return defaults if not configured
+  return {
+    loyalty_enabled: true,
+    points_per_dollar: 1.00,
+    points_per_visit: 10,
+    redeem_rate: 0.01,
+    min_points_redeem: 100
+  };
+};
+
+/**
+ * Auto-award points based on purchase amount
+ */
+exports.awardPointsForPurchase = async (user_id, salon_id, amount) => {
+  const config = await this.getLoyaltyConfig(salon_id);
+
+  if (!config.loyalty_enabled) {
+    return 0;
+  }
+
+  // Calculate points: (amount * points_per_dollar) + bonus per visit
+  const pointsFromAmount = Math.floor(amount * config.points_per_dollar);
+  const totalPoints = pointsFromAmount + config.points_per_visit;
+
+  await this.earnLoyaltyPoints(user_id, salon_id, totalPoints);
+
+  return totalPoints;
+};
+
+/**
+ * Calculate discount amount from points
+ */
+exports.calculateDiscount = async (salon_id, points_to_redeem) => {
+  const config = await this.getLoyaltyConfig(salon_id);
+
+  if (points_to_redeem < config.min_points_redeem) {
+    throw new Error(`Minimum ${config.min_points_redeem} points required to redeem`);
+  }
+
+  const discount = points_to_redeem * config.redeem_rate;
+  return parseFloat(discount.toFixed(2));
+};
+
+/**
+ * Get user's loyalty summary across all salons
+ */
+exports.getUserLoyaltySummary = async (user_id) => {
+  const [rows] = await db.query(
+    `SELECT l.salon_id, s.salon_name, l.points, l.last_earned, l.last_redeemed
+     FROM loyalty l
+     JOIN salons s ON l.salon_id = s.salon_id
+     WHERE l.user_id = ?
+     ORDER BY l.points DESC`,
+    [user_id]
+  );
+  return rows;
 };
 

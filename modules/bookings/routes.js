@@ -5,6 +5,9 @@ const bookingController = require("./controller");
 const { authenticateUser } = require("../../middleware/firebaseAuth");
 const { verifyCustomJwt } = require("../../middleware/verifyCustomJwt");
 
+// Public: Get available time slots for specific staff/date/service
+router.get("/slots", bookingController.getAvailableSlots);
+
 // Customers: Get available barbers and calculated time slots
 router.get(
   "/available",

@@ -23,8 +23,16 @@ exports.handleWebhook = async (req, res) => {
     switch (event.type) {
       case "checkout.session.completed":
         const session = event.data.object;
-        await paymentService.confirmPayment(session.id, session.payment_intent);
-        console.log(`Payment confirmed for session ${session.id}`);
+
+        // Check if this is a unified checkout (cart with products + services)
+        if (session.metadata?.checkout_type === 'unified') {
+          await paymentService.confirmUnifiedCheckout(session.id, session.payment_intent);
+          console.log(`Unified checkout confirmed for session ${session.id}`);
+        } else {
+          // Legacy appointment-only checkout
+          await paymentService.confirmPayment(session.id, session.payment_intent);
+          console.log(`Payment confirmed for session ${session.id}`);
+        }
         break;
 
       case "checkout.session.expired":
