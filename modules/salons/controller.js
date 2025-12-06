@@ -366,6 +366,27 @@ exports.createSalon = async (req, res) => {
   }
 };
 
+// Get public salon by ID (anyone can view)
+exports.getPublicSalonById = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+
+    const salons = await query(
+      "SELECT s.salon_id, s.salon_name as name, s.slug, s.address, s.city, s.state, s.zip, s.country, s.phone, s.email, s.website, s.description, s.profile_picture, s.status, s.created_at FROM salons s WHERE s.salon_id = ? AND s.status = 'active'",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found or not available" });
+    }
+
+    return res.json(salons[0]);
+  } catch (error) {
+    console.error("Error fetching public salon:", error);
+    res.status(500).json({ error: "Failed to fetch salon" });
+  }
+};
+
 // Get salon by ID (for settings view)
 exports.getSalonById = async (req, res) => {
   try {
@@ -373,7 +394,7 @@ exports.getSalonById = async (req, res) => {
     const userId = req.user?.user_id;
 
     const salons = await query(
-      "SELECT s.salon_id, s.name, s.slug, s.address, s.city, s.state, s.zip, s.country, s.phone, s.email, s.website, s.description, s.profile_picture, s.status, s.created_at, s.owner_id FROM salons s WHERE s.salon_id = ?",
+      "SELECT s.salon_id, s.salon_name as name, s.slug, s.address, s.city, s.state, s.zip, s.country, s.phone, s.email, s.website, s.description, s.profile_picture, s.status, s.created_at, s.owner_id FROM salons s WHERE s.salon_id = ?",
       [salon_id]
     );
 

@@ -35,6 +35,8 @@ const upload = multer({
 });
 
 // Always define specific routes BEFORE dynamic ones
+router.get("/public/:salon_id", salonController.getPublicSalonById);
+
 router.get(
   "/:salon_id/services",
   verifyAnyToken,

@@ -141,11 +141,13 @@ exports.bookAppointment = async (user_id, salon_id, staff_id, service_id, schedu
   if (!user_id || user_id === null || user_id === undefined) {
     throw new Error("User ID is required");
   }
-  
+
+  // Note: service_id parameter is kept for backward compatibility but not inserted
+  // The appointments table doesn't have a service_id column
   const result = await db.query(
-    `INSERT INTO appointments (user_id, salon_id, staff_id, service_id, scheduled_time, status)
-     VALUES (?, ?, ?, ?, ?, 'booked')`,
-    [user_id, salon_id, staff_id, service_id, scheduled_time]
+    `INSERT INTO appointments (user_id, salon_id, staff_id, scheduled_time, status)
+     VALUES (?, ?, ?, ?, 'booked')`,
+    [user_id, salon_id, staff_id, scheduled_time]
   );
   // MySQL2 returns [result, fields] where result has insertId
   const insertResult = Array.isArray(result) ? result[0] : result;
@@ -220,5 +222,94 @@ exports.blockTimeSlot = async (staff_id, start_datetime, end_datetime, reason) =
     [staff_id, start_datetime, end_datetime, reason || "Blocked time slot"]
   );
   return result.insertId;
+};
+
+// Get available time slots for specific staff/date/service
+exports.getAvailableSlots = async (salon_id, staff_id, date, service_id) => {
+  const targetDate = new Date(date);
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayName = dayNames[targetDate.getDay()];
+
+  // Get staff availability for the day
+  const [avails] = await db.query(
+    `SELECT * FROM staff_availability WHERE staff_id = ? AND day_of_week = ? AND is_available = TRUE`,
+    [staff_id, dayName]
+  );
+
+  if (avails.length === 0) {
+    return []; // No availability for this day
+  }
+
+  const nextDay = new Date(targetDate);
+  nextDay.setDate(targetDate.getDate() + 1);
+
+  // Get time offs
+  const [timeoffs] = await db.query(
+    `SELECT * FROM staff_time_off WHERE staff_id = ? AND status = 'approved' AND
+     ((start_datetime <= ? AND end_datetime >= ?) OR (start_datetime >= ? AND start_datetime <= ?))`,
+    [staff_id, targetDate, targetDate, targetDate, nextDay]
+  );
+
+  // Get existing appointments
+  const [apps] = await db.query(
+    `SELECT * FROM appointments WHERE staff_id = ? AND status = 'booked'
+     AND scheduled_time BETWEEN ? AND ?`,
+    [staff_id, targetDate, nextDay]
+  );
+
+  const slots = [];
+
+  for (const avail of avails) {
+    const startTimeParts = avail.start_time.split(":");
+    const startHour = parseInt(startTimeParts[0]);
+    const startMin = parseInt(startTimeParts[1]);
+
+    const endTimeParts = avail.end_time.split(":");
+    const endHour = parseInt(endTimeParts[0]);
+    const endMin = parseInt(endTimeParts[1]);
+
+    const start = new Date(targetDate);
+    start.setHours(startHour, startMin, 0, 0);
+
+    const end = new Date(targetDate);
+    end.setHours(endHour, endMin, 0, 0);
+
+    let slot = new Date(start);
+
+    while (slot < end) {
+      const slotEnd = new Date(slot.getTime() + 30 * 60000); // 30 min slots
+
+      // Check if blocked by time off
+      let blocked = false;
+      for (const t of timeoffs) {
+        if (new Date(t.start_datetime) < slotEnd && new Date(t.end_datetime) > slot) {
+          blocked = true;
+          break;
+        }
+      }
+
+      // Check if already booked
+      let booked = false;
+      for (const a of apps) {
+        if (new Date(a.scheduled_time) <= slot && new Date(a.scheduled_time).getTime() + 30 * 60000 > slot.getTime()) {
+          booked = true;
+          break;
+        }
+      }
+
+      if (!blocked && !booked && slotEnd <= end) {
+        slots.push({
+          time: slot.toISOString(),
+          start_time: slot.toTimeString().substring(0, 5),
+          end_time: slotEnd.toTimeString().substring(0, 5),
+          available: true
+        });
+      }
+
+      slot = slotEnd;
+    }
+  }
+
+  return slots;
 };
 

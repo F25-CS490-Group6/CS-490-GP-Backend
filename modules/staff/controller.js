@@ -333,6 +333,18 @@ exports.deleteStaff = async (req, res) => {
   }
 };
 
+// Public endpoint for fetching staff (for booking page)
+exports.getPublicStaffBySalon = async (req, res) => {
+  try {
+    const salonId = req.params.id;
+    const staff = await staffService.getStaffBySalon(salonId);
+    return res.status(200).json({ staff });
+  } catch (err) {
+    console.error("Error fetching public staff:", err);
+    res.status(500).json({ error: "Server error fetching staff" });
+  }
+};
+
 exports.getStaffBySalon = async (req, res) => {
   try {
     const salonId = req.params.id;

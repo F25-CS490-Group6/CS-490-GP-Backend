@@ -48,3 +48,36 @@ exports.getPaymentsForSalon = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+/**
+ * Create unified checkout (for cart with products + services)
+ * Supports optional loyalty point redemption
+ */
+exports.createUnifiedCheckout = async (req, res) => {
+  try {
+    const { salon_id, cart_id, points_to_redeem = 0 } = req.body;
+    const user_id = req.user.user_id || req.user.id;
+
+    if (!salon_id || !cart_id) {
+      return res.status(400).json({ error: "salon_id and cart_id are required" });
+    }
+
+    const result = await paymentService.createUnifiedCheckout(
+      user_id,
+      salon_id,
+      cart_id,
+      points_to_redeem
+    );
+
+    res.json({
+      success: true,
+      message: "Payment link sent to your email",
+      payment_id: result.payment_id,
+      payment_link: result.payment_link,
+      points_redeemed: points_to_redeem,
+    });
+  } catch (err) {
+    console.error("Create unified checkout error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};

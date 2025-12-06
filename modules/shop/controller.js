@@ -62,6 +62,9 @@ exports.getCart = async (req, res) => {
   }
 };
 
+/**
+ * @deprecated Use unified checkout endpoint instead
+ */
 exports.checkoutCart = async (req, res) => {
   try {
     const { salon_id, payment_method } = req.body;
@@ -83,6 +86,68 @@ exports.checkoutCart = async (req, res) => {
     res.json({ message: "Order placed", order_id });
   } catch (err) {
     console.error("Checkout error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Get unified cart (products + services)
+ */
+exports.getUnifiedCart = async (req, res) => {
+  try {
+    const { salon_id } = req.query;
+    const user_id = req.user.user_id || req.user.id;
+
+    if (!salon_id) {
+      return res.status(400).json({ error: "salon_id is required" });
+    }
+
+    const cart = await shopService.getUnifiedCart(user_id, salon_id);
+    const cart_id = cart.length > 0 ? cart[0].cart_id : null;
+
+    // Calculate total
+    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    res.json({
+      cart_id,
+      items: cart,
+      total,
+      item_count: cart.length,
+    });
+  } catch (err) {
+    console.error("Get unified cart error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Remove item from cart
+ */
+exports.removeFromCart = async (req, res) => {
+  try {
+    const { item_id } = req.params;
+    await shopService.removeFromCart(item_id);
+    res.json({ message: "Item removed from cart" });
+  } catch (err) {
+    console.error("Remove from cart error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Add appointment to cart
+ */
+exports.addAppointmentToCart = async (req, res) => {
+  try {
+    const { appointment_id, salon_id } = req.body;
+    const user_id = req.user.user_id || req.user.id;
+
+    const cart_id = await shopService.getOrCreateCart(user_id, salon_id);
+    await shopService.addAppointmentToCart(cart_id, appointment_id);
+
+    res.json({ message: "Appointment added to cart" });
+  } catch (err) {
+    console.error("Add appointment to cart error:", err);
     res.status(500).json({ error: err.message });
   }
 };

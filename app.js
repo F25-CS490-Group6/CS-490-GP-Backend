@@ -9,11 +9,14 @@ const authRoutes = require("./modules/auth/routes");
 const staffRoutes = require("./modules/staff/routes");
 const userRoutes = require("./modules/users/routes");
 const appointmentRoutes = require("./modules/appointments/routes");
+const bookingRoutes = require("./modules/bookings/routes");
 const analyticsRoutes = require("./modules/analytics/routes");
 const salonRoutes = require("./modules/salons/routes");
 const photoRoutes = require("./modules/photos/routes");
 const paymentRoutes = require("./modules/payments/routes");
 const webhookController = require("./modules/payments/webhooks");
+const shopRoutes = require("./modules/shop/routes");
+const loyaltyRoutes = require("./modules/loyalty/routes");
 const { db, testConnection, closePool } = require("./config/database");
 
 const app = express();
@@ -69,9 +72,12 @@ app.use("/api/auth", authRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/appointments", appointmentRoutes);
+app.use("/api/bookings", bookingRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/photos", photoRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/shop", shopRoutes);
+app.use("/api/loyalty", loyaltyRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });

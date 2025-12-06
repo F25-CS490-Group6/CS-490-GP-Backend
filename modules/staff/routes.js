@@ -7,6 +7,7 @@ const checkRoles = require("../../middleware/checkRoles");
 // ===== Public routes =====
 router.post("/login", staffController.verifyStaffLogin);
 router.post("/set-pin", staffController.setStaffPin);
+router.get("/public/salon/:id", staffController.getPublicStaffBySalon);
 
 // ===== Staff role management =====
 router.get("/staff_roles", staffController.getStaffRoles);
