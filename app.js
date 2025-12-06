@@ -150,12 +150,6 @@ app.use("/api/shop", shopRoutes);
 app.use("/api/loyalty", loyaltyRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 
-// Handle frontend calling /reviews instead of /api/reviews (missing /api prefix)
-// This must be AFTER CORS middleware so CORS headers are included
-const reviewController = require("./modules/reviews/controller");
-app.get("/reviews/salon/:salon_id", reviewController.getSalonReviews);
-app.get("/reviews/:salon_id", reviewController.getSalonReviews);
-
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
