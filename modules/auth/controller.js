@@ -107,7 +107,16 @@ const createOwnerSalon = async (ownerId, payload = {}) => {
     )})`,
     values
   );
-  return { salonId: result.insertId, slug };
+  
+  const salonId = result.insertId;
+  
+  // Update users table to set salon_id for the owner
+  await db.query(
+    "UPDATE users SET salon_id = ? WHERE user_id = ?",
+    [salonId, ownerId]
+  );
+  
+  return { salonId, slug };
 };
 
 const cleanupUserRecords = async (userId) => {
@@ -256,6 +265,7 @@ exports.loginManual = async (req, res) => {
           user_id: user.user_id,
           email: user.email,
           role: user.user_role,
+          salon_id: user.salon_id || null,
           temp2FA: true,
         },
         "15m"
@@ -303,6 +313,7 @@ exports.loginManual = async (req, res) => {
       user_id: user.user_id,
       email: user.email,
       role: user.user_role,
+      salon_id: user.salon_id || null,
     });
 
     // Set secure HTTP-only cookie for middleware + persistence
@@ -323,6 +334,88 @@ exports.loginManual = async (req, res) => {
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Server error during login" });
+  }
+};
+
+// ==========================
+// CUSTOMER PASSWORD SETUP (TOKEN-BASED)
+// ==========================
+exports.setCustomerPasswordFromToken = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res
+        .status(400)
+        .json({ error: "Token and new password are required" });
+    }
+
+    if (password.length < 8) {
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 8 characters long" });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      const message =
+        err.name === "TokenExpiredError"
+          ? "Password setup link has expired"
+          : "Invalid password setup link";
+      return res.status(401).json({ error: message });
+    }
+
+    if (decoded.purpose !== "customer_portal_setup") {
+      return res.status(400).json({ error: "Invalid password setup token" });
+    }
+
+    const { user_id: userId, email } = decoded;
+    const [users] = await db.query(
+      "SELECT user_id, email, user_role, full_name FROM users WHERE user_id = ? OR email = ? LIMIT 1",
+      [userId, email]
+    );
+
+    if (!users.length) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = users[0];
+
+    const [authRows] = await db.query(
+      "SELECT password_hash FROM auth WHERE user_id = ? OR email = ? LIMIT 1",
+      [user.user_id, user.email]
+    );
+
+    if (authRows.length && authRows[0].password_hash) {
+      return res
+        .status(409)
+        .json({ error: "Password already set. Please sign in instead." });
+    }
+
+    await authService.upsertPassword(user.user_id, user.email, password);
+
+    const loginToken = authService.generateJwtToken({
+      user_id: user.user_id,
+      email: user.email,
+      role: user.user_role,
+    });
+
+    res.cookie("token", loginToken, buildAuthCookieOptions(60 * 60 * 1000));
+
+    return res.json({
+      message: "Password set successfully",
+      token: loginToken,
+      user: {
+        id: user.user_id,
+        email: user.email,
+        role: user.user_role,
+        full_name: user.full_name,
+      },
+    });
+  } catch (err) {
+    console.error("Customer password setup error:", err);
+    res.status(500).json({ error: "Failed to set password" });
   }
 };
 
@@ -380,7 +473,19 @@ exports.setRole = async (req, res) => {
       email,
       role
     );
-    const token = authService.generateAppJwt({ user_id: userId, email, role });
+    // Get salon_id if user already has one (for existing users)
+    const [userRows] = await db.query(
+      "SELECT salon_id FROM users WHERE user_id = ?",
+      [userId]
+    );
+    const salonId = userRows[0]?.salon_id || null;
+    
+    const token = authService.generateAppJwt({ 
+      user_id: userId, 
+      email, 
+      role,
+      salon_id: salonId 
+    });
     res.status(201).json({ token, role });
   } catch (err) {
     console.error("Error setting role:", err);
@@ -419,7 +524,7 @@ exports.getCurrentUser = async (req, res) => {
     } else if (req.user) {
       const [rows] = await db.query(
         `${baseSelect} WHERE u.user_id = ? OR u.email = ?`,
-        [req.user.user_id, req.user.email]
+        [req.user?.user_id || req.user?.id, req.user?.email]
       );
 
       if (!rows.length)
@@ -445,7 +550,7 @@ exports.logout = async (req, res) => {
 
 exports.enable2FA = async (req, res) => {
   try {
-    const userId = req.user.user_id || req.user.id;
+    const userId = req.user?.user_id || req.user?.id;
     const { method, phoneNumber: providedPhoneNumber } = req.body;
 
     if (!method || !["sms", "email"].includes(method)) {
@@ -496,7 +601,7 @@ exports.enable2FA = async (req, res) => {
 
 exports.disable2FA = async (req, res) => {
   try {
-    const userId = req.user.user_id || req.user.id;
+    const userId = req.user?.user_id || req.user?.id;
 
     await db.query(
       "UPDATE user_2fa_settings SET is_enabled = false WHERE user_id = ?",
@@ -512,7 +617,7 @@ exports.disable2FA = async (req, res) => {
 
 exports.get2FAStatusController = async (req, res) => {
   try {
-    const userId = req.user.user_id || req.user.id;
+    const userId = req.user?.user_id || req.user?.id;
     const status = await authService.get2FAStatus(userId);
 
     res
@@ -561,17 +666,20 @@ exports.verify2FA = async (req, res) => {
 
     // Generate final token
     await authService.updateLoginStats(userId);
+    
+    // Get user details including salon_id
+    const [rows] = await db.query(
+      "SELECT user_id, email, user_role, full_name, salon_id FROM users WHERE user_id = ?",
+      [userId]
+    );
+    
+    const user = rows[0];
     const finalToken = authService.generateJwtToken({
       user_id: userId,
       email: decoded.email,
       role: decoded.role,
+      salon_id: user?.salon_id || null,
     });
-
-    // Get user details
-    const [rows] = await db.query(
-      "SELECT user_id, email, user_role, full_name FROM users WHERE user_id = ?",
-      [userId]
-    );
 
     res.cookie("token", finalToken, buildAuthCookieOptions(60 * 60 * 1000));
 
@@ -587,18 +695,34 @@ exports.verify2FA = async (req, res) => {
 };
 
 exports.refreshToken = async (req, res) => {
-  const oldToken = req.cookies?.token;
+  const cookieToken = req.cookies?.token;
+  const authHeader = req.headers.authorization || "";
+  const headerToken = authHeader.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : null;
+
+  const oldToken = cookieToken || headerToken;
   if (!oldToken) return res.status(401).json({ error: "Missing token" });
 
   try {
     const decoded = jwt.verify(oldToken, process.env.JWT_SECRET, {
       ignoreExpiration: true,
     });
+    
+    // Get current user's salon_id from database
+    const [userRows] = await db.query(
+      "SELECT salon_id FROM users WHERE user_id = ?",
+      [decoded.user_id]
+    );
+    
+    const salonId = userRows[0]?.salon_id || decoded.salon_id || null;
+    
     const newToken = jwt.sign(
       {
         user_id: decoded.user_id,
         email: decoded.email,
         role: decoded.role,
+        salon_id: salonId,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
@@ -656,15 +780,145 @@ exports.deleteAccount = async (req, res) => {
     }
 
     // Delete user (cascade will handle related records)
-    const affected = await userService.deleteUser(userId);
+    try {
+      const affected = await userService.deleteUser(userId);
 
-    if (affected === 0) {
-      return res.status(404).json({ error: "User not found" });
+      if (affected === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ message: "Account deleted successfully" });
+    } catch (deleteError) {
+      console.error("Error deleting user:", deleteError);
+      // Return specific error message if available
+      if (deleteError.message) {
+        return res.status(400).json({ 
+          error: deleteError.message || "Failed to delete account" 
+        });
+      }
+      throw deleteError; // Re-throw to be caught by outer catch
     }
-
-    res.json({ message: "Account deleted successfully" });
   } catch (error) {
     console.error("Error deleting account:", error);
-    res.status(500).json({ error: "Failed to delete account" });
+    res.status(500).json({ 
+      error: error.message || "Failed to delete account",
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined
+    });
+  }
+};
+
+/**
+ * SETUP ADMIN (First-time admin creation)
+ * POST /api/auth/setup-admin
+ * Allows creating the first admin user or upgrading existing user to admin
+ * Optional: Requires ADMIN_SETUP_TOKEN in env for security
+ */
+exports.setupAdmin = async (req, res) => {
+  try {
+    const { email, password, full_name, phone, setup_token } = req.body;
+
+    if (!email || !password || !full_name) {
+      return res.status(400).json({ 
+        error: "Email, password, and full name are required" 
+      });
+    }
+
+    // Check if setup token is required and valid (if ADMIN_SETUP_TOKEN is set in env)
+    if (process.env.ADMIN_SETUP_TOKEN) {
+      if (!setup_token || setup_token !== process.env.ADMIN_SETUP_TOKEN) {
+        return res.status(403).json({ 
+          error: "Invalid setup token. Admin setup requires a valid token." 
+        });
+      }
+    }
+
+    // Check if any admin already exists
+    const [existingAdmins] = await db.query(
+      "SELECT user_id FROM users WHERE user_role = 'admin' LIMIT 1"
+    );
+
+    // If ADMIN_SETUP_TOKEN is not set, only allow setup if no admins exist
+    if (!process.env.ADMIN_SETUP_TOKEN && existingAdmins.length > 0) {
+      return res.status(403).json({ 
+        error: "Admin already exists. Please use the admin login or contact support." 
+      });
+    }
+
+    // Check if user with this email already exists
+    const [existingUser] = await db.query(
+      "SELECT user_id, user_role, full_name FROM users WHERE email = ?",
+      [email]
+    );
+
+    if (existingUser.length > 0) {
+      // If user exists and is not admin, update to admin
+      if (existingUser[0].user_role !== 'admin') {
+        await db.query(
+          "UPDATE users SET user_role = 'admin' WHERE user_id = ?",
+          [existingUser[0].user_id]
+        );
+        
+        // Update password if provided
+        if (password) {
+          await authService.upsertPassword(existingUser[0].user_id, email, password);
+        }
+
+        const token = authService.generateAppJwt({
+          user_id: existingUser[0].user_id,
+          email,
+          role: 'admin'
+        });
+
+        return res.status(200).json({
+          message: "User upgraded to admin successfully",
+          token,
+          user: {
+            user_id: existingUser[0].user_id,
+            email,
+            full_name: existingUser[0].full_name || full_name,
+            role: 'admin'
+          }
+        });
+      } else {
+        return res.status(400).json({ 
+          error: "User with this email is already an admin" 
+        });
+      }
+    }
+
+    // Create new admin user
+    const phoneToSave = phone || "0000000000";
+    const userId = await authService.createUser(full_name, phoneToSave, email, 'admin');
+    
+    // Set password
+    await authService.upsertPassword(userId, email, password);
+
+    const token = authService.generateAppJwt({
+      user_id: userId,
+      email,
+      role: 'admin'
+    });
+
+    res.status(201).json({
+      message: "Admin account created successfully",
+      token,
+      user: {
+        user_id: userId,
+        email,
+        full_name,
+        role: 'admin'
+      }
+    });
+  } catch (err) {
+    console.error("Error setting up admin:", err);
+    
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+    
+    res.status(500).json({ 
+      error: "Server error while setting up admin",
+      message: err.message 
+    });
   }
 };

@@ -102,21 +102,81 @@ exports.addStaff = async (req, res) => {
       phone,
     } = req.body;
 
-    if (!salon_id || !email || !salon_slug) {
+    // Use salon_id from request body, or fall back to authenticated user's salon_id
+    const finalSalonId = salon_id || req.user?.salon_id;
+    
+    if (!email) {
       return res.status(400).json({
-        error: "salon_id, email, and salon_slug are required",
+        error: "Email is required",
       });
+    }
+    
+    if (!finalSalonId) {
+      return res.status(400).json({
+        error: "Salon ID is required. Please ensure you are associated with a salon or provide a salon_id.",
+      });
+    }
+
+    // If salon_slug is not provided, fetch it from the database
+    let finalSalonSlug = salon_slug;
+    if (!finalSalonSlug) {
+      const [slugRows] = await db.query(
+        "SELECT slug FROM salons WHERE salon_id = ? LIMIT 1",
+        [finalSalonId]
+      );
+      if (slugRows && slugRows.length > 0) {
+        finalSalonSlug = slugRows[0].slug;
+      }
+    }
+
+    if (!finalSalonSlug) {
+      return res.status(400).json({
+        error: "salon_slug is required. Please provide it or ensure your salon has a slug.",
+      });
+    }
+
+    // Check subscription limits - get owner from salon
+    const subscriptionLimits = require("../account/subscriptionLimits");
+    const [salonRows] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [finalSalonId]
+    );
+    
+    if (salonRows && salonRows.length > 0) {
+      const ownerId = salonRows[0].owner_id;
+      const staffCheck = await subscriptionLimits.canAddStaff(ownerId, finalSalonId);
+      if (!staffCheck.allowed) {
+        return res.status(403).json({
+          error: staffCheck.message,
+          current: staffCheck.current,
+          limit: staffCheck.limit,
+        });
+      }
     }
 
     // Step 1: Find or create user
     const [existingUser] = await db.query(
-      "SELECT user_id FROM users WHERE email = ?",
+      "SELECT user_id, full_name FROM users WHERE email = ?",
       [email]
     );
 
     let user_id;
     if (existingUser.length > 0) {
       user_id = existingUser[0].user_id;
+      // Update user's name and phone if they differ from what's in the form
+      // This ensures the staff member has the correct name even if the user existed before
+      if (full_name && (existingUser[0].full_name !== full_name || !existingUser[0].full_name)) {
+        await db.query(
+          "UPDATE users SET full_name = ?, phone = COALESCE(?, phone) WHERE user_id = ?",
+          [full_name, phone, user_id]
+        );
+      } else if (phone) {
+        // Update phone if name is already correct
+        await db.query(
+          "UPDATE users SET phone = ? WHERE user_id = ?",
+          [phone, user_id]
+        );
+      }
     } else {
       const [result] = await db.query(
         "INSERT INTO users (full_name, phone, email, user_role) VALUES (?, ?, ?, 'staff')",
@@ -126,12 +186,17 @@ exports.addStaff = async (req, res) => {
     }
 
     // Step 2: Create staff record + unique staff code
+    // Convert specialization array to comma-separated string if it's an array
+    const specializationStr = Array.isArray(specialization) 
+      ? specialization.join(", ") 
+      : specialization;
+    
     const newStaff = await staffService.addStaff(
-      salon_id,
+      finalSalonId,
       user_id,
       staff_role,
       staff_role_id,
-      specialization
+      specializationStr
     );
     const { insertId, staffCode } = newStaff;
 
@@ -140,15 +205,16 @@ exports.addStaff = async (req, res) => {
     await staffService.savePinSetupToken(insertId, token);
 
     // Step 4: Build URLs
-    const frontendBase = process.env.NEXT_PUBLIC_APP_URL || "https://stygo.app";
-    const setupLink = `${frontendBase}/salon/${salon_slug}/staff/sign-in-code?token=${token}`;
-    const loginLink = `${frontendBase}/salon/${salon_slug}/staff/login`;
+    const frontendBase =
+      process.env.FRONTEND_URL || "https://main.d9mc2v9b3gxgw.amplifyapp.com";
+    const setupLink = `${frontendBase}/salon/${finalSalonSlug}/staff/sign-in-code?token=${token}`;
+    const loginLink = `${frontendBase}/salon/${finalSalonSlug}/staff/login`;
 
     // Step 5: Send onboarding email
     const emailHtml = `
       <h2>Welcome to StyGo Staff Portal!</h2>
       <p>Hello ${full_name.split(" ")[0]},</p>
-      <p>You’ve been added as a staff member at <b>${salon_slug}</b>.</p>
+      <p>You've been added as a staff member at <b>${finalSalonSlug}</b>.</p>
       <p>Your 4-digit Staff ID: <b>${staffCode}</b></p>
       <p>Please set your personal PIN to activate your account:</p>
       <a href="${setupLink}" 
@@ -164,7 +230,9 @@ exports.addStaff = async (req, res) => {
     // Send email in background (don't wait for it)
     sendEmail(email, "Set Up Your StyGo Staff PIN", emailHtml)
       .then(() => console.log("✅ Onboarding email sent successfully"))
-      .catch((emailErr) => console.log("⚠️ Email sending failed:", emailErr.message));
+      .catch((emailErr) =>
+        console.log("⚠️ Email sending failed:", emailErr.message)
+      );
 
     // Return immediately without waiting for email
     return res.status(201).json({
@@ -208,6 +276,11 @@ exports.editStaff = async (req, res) => {
       if (existing.length > 0) finalUserId = existing[0].user_id;
     }
 
+    // Convert specialization array to comma-separated string if it's an array
+    const specializationStr = Array.isArray(specialization) 
+      ? specialization.join(", ") 
+      : specialization;
+    
     // Call updated service (updates both staff + user)
     await staffService.editStaff(
       staff_id,
@@ -215,7 +288,7 @@ exports.editStaff = async (req, res) => {
       finalUserId,
       staff_role,
       staff_role_id,
-      specialization,
+      specializationStr,
       full_name,
       phone,
       email
@@ -333,14 +406,16 @@ exports.deleteStaff = async (req, res) => {
   }
 };
 
-// Public endpoint for fetching staff (for booking page)
-exports.getPublicStaffBySalon = async (req, res) => {
+// Public endpoint for customer view
+exports.getStaffBySalonPublic = async (req, res) => {
   try {
-    const salonId = req.params.id;
+    const salonId = Number(req.params.id);
     const staff = await staffService.getStaffBySalon(salonId);
-    return res.status(200).json({ staff });
+    // Only return active staff for public view
+    const activeStaff = staff.filter(s => s.is_active === 1 || s.is_active === true);
+    return res.status(200).json({ staff: activeStaff });
   } catch (err) {
-    console.error("Error fetching public staff:", err);
+    console.error("Error fetching staff:", err);
     res.status(500).json({ error: "Server error fetching staff" });
   }
 };

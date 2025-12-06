@@ -41,6 +41,7 @@ exports.getSalonGallery = async (req, res) => {
 exports.addSalonPhoto = async (req, res) => {
   try {
     const { salon_id, caption } = req.body;
+    const userId = req.user?.user_id || req.user?.id;
     
     if (!salon_id) {
       return res.status(400).json({ error: "Salon ID required" });
@@ -48,6 +49,21 @@ exports.addSalonPhoto = async (req, res) => {
     
     if (!req.file) {
       return res.status(400).json({ error: "Photo file required" });
+    }
+
+    // Verify ownership
+    const { db } = require("../../config/database");
+    const [salonRows] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salonRows || salonRows.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salonRows[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to add photos to this salon" });
     }
 
     const photo_url = `/uploads/${req.file.filename}`;
@@ -64,6 +80,26 @@ exports.addSalonPhoto = async (req, res) => {
 exports.deleteSalonPhoto = async (req, res) => {
   try {
     const photo_id = req.params.photo_id;
+    const userId = req.user?.user_id || req.user?.id;
+
+    // Verify ownership through salon
+    const { db } = require("../../config/database");
+    const [photoRows] = await db.query(
+      `SELECT sp.salon_id, s.owner_id 
+       FROM salon_photos sp
+       JOIN salons s ON sp.salon_id = s.salon_id
+       WHERE sp.photo_id = ?`,
+      [photo_id]
+    );
+
+    if (!photoRows || photoRows.length === 0) {
+      return res.status(404).json({ error: "Photo not found" });
+    }
+
+    if (photoRows[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to delete this photo" });
+    }
+
     await photoService.deleteSalonPhoto(photo_id);
     res.json({ message: "Photo deleted" });
   } catch (err) {

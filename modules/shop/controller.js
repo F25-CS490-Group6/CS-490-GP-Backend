@@ -37,8 +37,22 @@ exports.getSalonProducts = async (req, res) => {
 
 exports.addToCart = async (req, res) => {
   try {
-    const { product_id, quantity, price, salon_id } = req.body;
+    const { product_id, quantity = 1, price, salon_id } = req.body;
     const user_id = req.user.user_id || req.user.id;
+
+    if (!product_id || !salon_id || !price) {
+      return res.status(400).json({ error: "product_id, salon_id, and price are required" });
+    }
+
+    // Check product stock
+    const product = await shopService.getProductById(product_id);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+    
+    if (product.stock < quantity) {
+      return res.status(400).json({ error: `Insufficient stock. Only ${product.stock} available.` });
+    }
 
     const cart_id = await shopService.getOrCreateCart(user_id, salon_id);
     await shopService.addToCart(cart_id, product_id, quantity, price);
@@ -55,7 +69,14 @@ exports.getCart = async (req, res) => {
     const user_id = req.user.user_id || req.user.id;
 
     const cart = await shopService.getCart(user_id, salon_id);
-    res.json(cart);
+    
+    // Get product suggestions (products not in cart)
+    const suggestions = await shopService.getProductSuggestions(user_id, salon_id, 6);
+    
+    res.json({
+      cart,
+      suggestions
+    });
   } catch (err) {
     console.error("Get cart error:", err);
     res.status(500).json({ error: err.message });

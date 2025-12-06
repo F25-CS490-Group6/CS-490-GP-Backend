@@ -120,7 +120,7 @@ async function getAppointmentsByUser(userId) {
       a.scheduled_time,
       a.status,
       a.price,
-      s.salon_name AS salon_name,
+      s.name AS salon_name,
       GROUP_CONCAT(sv.custom_name SEPARATOR ', ') AS service_names,
       stf.staff_id,
       su.full_name AS staff_name
@@ -135,7 +135,11 @@ async function getAppointmentsByUser(userId) {
     ORDER BY a.scheduled_time DESC
   `;
   const [rows] = await db.query(sql, [userId]);
-  return rows;
+  // Ensure price is a number for all appointments (MySQL decimal can be returned as string)
+  return rows.map(row => ({
+    ...row,
+    price: Number(row.price) || 0
+  }));
 }
 
 /**
@@ -152,7 +156,7 @@ async function getAppointmentById(appointmentId) {
       a.status,
       a.price,
       a.notes,
-      s.salon_name AS salon_name,
+      s.name AS salon_name,
       cu.full_name AS customer_name,
       stf.staff_id,
       su.full_name AS staff_name
@@ -167,6 +171,8 @@ async function getAppointmentById(appointmentId) {
   if (!rows.length) return null;
 
   const appointment = rows[0];
+  // Ensure price is a number (MySQL decimal can be returned as string)
+  appointment.price = Number(appointment.price) || 0;
   appointment.services = await getAppointmentServices(appointmentId);
   return appointment;
 }
@@ -242,6 +248,25 @@ async function cancelAppointment(appointmentId) {
 }
 
 /**
+ * Delete appointment (permanently remove from database)
+ */
+async function deleteAppointment(appointmentId) {
+  // First delete related records in appointment_services
+  await db.query(
+    "DELETE FROM appointment_services WHERE appointment_id = ?",
+    [appointmentId]
+  );
+  
+  // Then delete the appointment itself
+  const sql = `
+    DELETE FROM appointments 
+    WHERE appointment_id = ?
+  `;
+  const [result] = await db.query(sql, [appointmentId]);
+  return result.affectedRows;
+}
+
+/**
  * Automatically cancel pending appointments that have been waiting >24h
  */
 async function expireStalePendingAppointments() {
@@ -307,6 +332,7 @@ module.exports = {
   getAppointmentsBySalon,
   updateAppointment,
   cancelAppointment,
+  deleteAppointment,
   expireStalePendingAppointments,
   addAppointmentServices,
   getAppointmentServices,

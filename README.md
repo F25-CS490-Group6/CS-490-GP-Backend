@@ -90,8 +90,17 @@ Create `.env` in the project root (never commit these secrets):
 # Server
 PORT=4000
 NODE_ENV=development
+# Frontend URL for CORS - REQUIRED for production deployments
+# Set to your production frontend URL (e.g., https://main.d9mc2v9b3gxgw.amplifyapp.com)
+# For multiple origins, use FRONTEND_URLS instead (comma-separated)
 FRONTEND_URL=http://localhost:3000
+# FRONTEND_URLS=https://main.d9mc2v9b3gxgw.amplifyapp.com,https://other-origin.com
 JWT_SECRET=replace_with_strong_secret
+CUSTOMER_PORTAL_URL=http://localhost:3000
+CUSTOMER_PASSWORD_SETUP_PATH=/customer/setup-password
+CUSTOMER_APPOINTMENT_PATH=/customer/appointments
+CUSTOMER_SIGNIN_PATH=/sign-in
+CUSTOMER_PORTAL_TOKEN_TTL=7d
 
 # Database
 MYSQL_HOST=localhost

@@ -13,6 +13,13 @@ const { db } = require("../../config/database");
 
 router.post("/signup", authController.signupManual);
 router.post("/login", authController.loginManual);
+router.post(
+  "/customer/set-password",
+  authController.setCustomerPasswordFromToken
+);
+
+// Admin setup route (public, but protected by token if ADMIN_SETUP_TOKEN is set)
+router.post("/setup-admin", authController.setupAdmin);
 
 router.get("/profile", verifyCustomJwt, (req, res) => {
   res.json({
@@ -40,14 +47,14 @@ router.post("/verify-firebase", async (req, res) => {
     const { uid, email } = decoded;
 
     const [rows] = await db.query(
-      "SELECT user_id, user_role FROM users WHERE firebase_uid = ? OR email = ? LIMIT 1",
+      "SELECT user_id, user_role, salon_id FROM users WHERE firebase_uid = ? OR email = ? LIMIT 1",
       [uid, email]
     );
 
     if (rows.length > 0) {
       const user = rows[0];
       const jwtToken = jwt.sign(
-        { user_id: user.user_id, email, role: user.user_role },
+        { user_id: user.user_id, email, role: user.user_role, salon_id: user.salon_id || null },
         process.env.JWT_SECRET,
         { expiresIn: "1h" }
       );
@@ -109,6 +116,7 @@ router.post("/set-role", async (req, res) => {
 
     const userId = result.insertId;
 
+    let salonId = null;
     if (role === "owner" && businessName) {
       // Generate slug from business name
       const slug = businessName
@@ -116,7 +124,7 @@ router.post("/set-role", async (req, res) => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
       
-      await db.query(
+      const [salonResult] = await db.query(
         `INSERT INTO salons (owner_id, name, slug, address, city, state, zip, country, email, phone, website, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
         [
@@ -133,10 +141,18 @@ router.post("/set-role", async (req, res) => {
           businessWebsite || null,
         ]
       );
+      
+      salonId = salonResult.insertId;
+      
+      // Update users table to set salon_id for the owner
+      await db.query(
+        "UPDATE users SET salon_id = ? WHERE user_id = ?",
+        [salonId, userId]
+      );
     }
 
     const token = jwt.sign(
-      { user_id: userId, email, role },
+      { user_id: userId, email, role, salon_id: salonId },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );

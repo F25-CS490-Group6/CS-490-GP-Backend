@@ -19,20 +19,32 @@ async function findUserByEmail(email) {
 }
 
 async function createUser(full_name, phone, email, role = "customer") {
-  // Generate a unique user_id using UUID or timestamp
-  const userId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-
+  // Let MySQL auto-increment the user_id (integer)
   const [userResult] = await db.query(
-    "INSERT INTO users (user_id, full_name, phone, email, user_role) VALUES (?, ?, ?, ?, ?)",
-    [userId, full_name, phone, email, role]
+    "INSERT INTO users (full_name, phone, email, user_role) VALUES (?, ?, ?, ?)",
+    [full_name, phone, email, role]
   );
-  return userId;
+  return userResult.insertId;
 }
 
 async function createAuthRecord(userId, email, password) {
   const hash = await bcrypt.hash(password, 10);
   await db.query(
     "INSERT INTO auth (user_id, email, password_hash) VALUES (?, ?, ?)",
+    [userId, email, hash]
+  );
+}
+
+async function upsertPassword(userId, email, password) {
+  const hash = await bcrypt.hash(password, 10);
+  await db.query(
+    `
+    INSERT INTO auth (user_id, email, password_hash)
+    VALUES (?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      password_hash = VALUES(password_hash),
+      email = VALUES(email)
+    `,
     [userId, email, hash]
   );
 }
@@ -69,9 +81,8 @@ async function verifyFirebaseToken(idToken) {
 
 async function findFirebaseUser(firebaseUid, email) {
   const [rows] = await db.query(
-    `SELECT u.user_id, u.user_role, s.salon_id
+    `SELECT u.user_id, u.user_role, u.salon_id
      FROM users u
-     LEFT JOIN salons s ON s.owner_id = u.user_id
      WHERE u.firebase_uid = ? OR u.email = ?
      LIMIT 1`,
     [firebaseUid, email]
@@ -224,6 +235,7 @@ module.exports = {
   createAuthRecord,
   verifyPassword,
   updateLoginStats,
+  upsertPassword,
   generateJwtToken,
 
   // Firebase
