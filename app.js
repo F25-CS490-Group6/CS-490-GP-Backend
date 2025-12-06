@@ -22,7 +22,6 @@ const reviewRoutes = require("./modules/reviews/routes");
 const staffPortalRoutes = require("./modules/staffportal/routes");
 const paymentRoutes = require("./modules/payments/routes");
 const adminRoutes = require("./modules/admins/routes");
-const bookingRoutes = require("./modules/bookings/routes");
 const webhookController = require("./modules/payments/webhooks");
 const shopRoutes = require("./modules/shop/routes");
 const loyaltyRoutes = require("./modules/loyalty/routes");
