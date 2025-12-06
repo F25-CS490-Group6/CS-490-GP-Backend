@@ -2,21 +2,21 @@
 const express = require("express");
 const router = express.Router();
 const loyaltyController = require("./controller");
-const { verifyCustomJwt } = require("../../middleware/verifyCustomJwt");
+const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
 
 // User endpoints - manage personal loyalty points
-router.get("/my-summary", verifyCustomJwt, loyaltyController.getMyLoyaltySummary);
-router.get("/my-points/:salon_id", verifyCustomJwt, loyaltyController.getMyPoints);
-router.post("/redeem", verifyCustomJwt, loyaltyController.redeemLoyaltyPoints);
-router.post("/calculate-discount", verifyCustomJwt, loyaltyController.calculateDiscount);
+router.get("/my-summary", verifyAnyToken, loyaltyController.getMyLoyaltySummary);
+router.get("/my-points/:salon_id", verifyAnyToken, loyaltyController.getMyPoints);
+router.post("/redeem", verifyAnyToken, loyaltyController.redeemLoyaltyPoints);
+router.post("/calculate-discount", verifyAnyToken, loyaltyController.calculateDiscount);
 
 // Admin/manual endpoints (legacy - use auto-award instead)
-router.post("/earn", verifyCustomJwt, loyaltyController.earnLoyaltyPoints);
-router.get("/:user_id/:salon_id", verifyCustomJwt, loyaltyController.getLoyaltyPoints);
+router.post("/earn", verifyAnyToken, loyaltyController.earnLoyaltyPoints);
+router.get("/:user_id/:salon_id", verifyAnyToken, loyaltyController.getLoyaltyPoints);
 
 // Salon owner endpoints - configure loyalty program
-router.post("/config", verifyCustomJwt, loyaltyController.setLoyaltyConfig);
-router.get("/config/:salon_id", verifyCustomJwt, loyaltyController.getLoyaltyConfig);
+router.post("/config", verifyAnyToken, loyaltyController.setLoyaltyConfig);
+router.get("/config/:salon_id", verifyAnyToken, loyaltyController.getLoyaltyConfig);
 
 module.exports = router;
 

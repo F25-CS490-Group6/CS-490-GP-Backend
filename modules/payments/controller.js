@@ -10,7 +10,7 @@ const paymentService = require("./service");
  */
 exports.createCheckout = async (req, res) => {
   try {
-    const { amount, appointment_id, type, items, products } = req.body;
+    const { amount, appointment_id, type, items, products, points_to_redeem = 0, salon_id } = req.body;
     const user_id = req.user.user_id || req.user.id || req.user.userId;
 
     if (!user_id) {
@@ -64,7 +64,9 @@ exports.createCheckout = async (req, res) => {
     const result = await paymentService.createCheckoutAndNotify(
       user_id,
       parseFloat(amount),
-      appointment_id
+      appointment_id,
+      points_to_redeem,
+      salon_id
     );
 
     res.json({
@@ -72,6 +74,8 @@ exports.createCheckout = async (req, res) => {
       message: "Payment link sent to your email",
       payment_id: result.payment_id,
       payment_link: result.payment_link,
+      points_redeemed: result.points_redeemed || 0,
+      discount_applied: result.discount_applied || 0,
     });
   } catch (err) {
     console.error("Checkout error:", err);
