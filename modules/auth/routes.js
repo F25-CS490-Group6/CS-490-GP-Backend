@@ -13,6 +13,8 @@ const { db } = require("../../config/database");
 
 router.post("/signup", authController.signupManual);
 router.post("/login", authController.loginManual);
+router.post("/forgot-password", authController.forgotPassword);
+router.post("/reset-password", authController.resetPassword);
 router.post(
   "/customer/set-password",
   authController.setCustomerPasswordFromToken

@@ -338,6 +338,136 @@ exports.loginManual = async (req, res) => {
 };
 
 // ==========================
+// FORGOT PASSWORD
+// ==========================
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    // Find user by email
+    const user = await authService.findUserByEmail(email);
+    
+    // For security, don't reveal if user exists or not
+    // Always return success message
+    if (!user) {
+      // Still return success to prevent email enumeration
+      return res.json({
+        message: "If an account with that email exists, a password reset link has been sent.",
+      });
+    }
+
+    // Check if user has a password set (has auth record with password_hash)
+    if (!user.password_hash) {
+      // User exists but no password set - still return success
+      return res.json({
+        message: "If an account with that email exists, a password reset link has been sent.",
+      });
+    }
+
+    // Send password reset email
+    const result = await authService.sendPasswordResetEmail(
+      user.user_id,
+      user.email,
+      user.full_name
+    );
+
+    if (!result.success) {
+      console.error("Failed to send password reset email:", result.error);
+      // Still return success to prevent information leakage
+      return res.json({
+        message: "If an account with that email exists, a password reset link has been sent.",
+      });
+    }
+
+    res.json({
+      message: "If an account with that email exists, a password reset link has been sent.",
+    });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    // Return generic success message even on error
+    res.json({
+      message: "If an account with that email exists, a password reset link has been sent.",
+    });
+  }
+};
+
+// ==========================
+// RESET PASSWORD (reuses setCustomerPasswordFromToken pattern)
+// ==========================
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res
+        .status(400)
+        .json({ error: "Token and new password are required" });
+    }
+
+    if (password.length < 8) {
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 8 characters long" });
+    }
+
+    // Reuse same JWT verification pattern as setCustomerPasswordFromToken
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      const message =
+        err.name === "TokenExpiredError"
+          ? "Password reset link has expired. Please request a new one."
+          : "Invalid password reset link";
+      return res.status(401).json({ error: message });
+    }
+
+    if (decoded.purpose !== "password_reset") {
+      return res.status(400).json({ error: "Invalid password reset token" });
+    }
+
+    const { user_id: userId, email } = decoded;
+    
+    // Reuse same user lookup pattern
+    const [users] = await db.query(
+      "SELECT user_id, email, user_role, full_name FROM users WHERE user_id = ? OR email = ? LIMIT 1",
+      [userId, email]
+    );
+
+    if (!users.length) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = users[0];
+
+    // For reset, require password to exist (opposite of setCustomerPasswordFromToken)
+    const [authRows] = await db.query(
+      "SELECT password_hash FROM auth WHERE user_id = ? OR email = ? LIMIT 1",
+      [user.user_id, user.email]
+    );
+
+    if (!authRows.length || !authRows[0].password_hash) {
+      return res.status(400).json({
+        error: "Password reset is not available for this account. Please contact support.",
+      });
+    }
+
+    // Reuse existing upsertPassword function
+    await authService.upsertPassword(user.user_id, user.email, password);
+
+    res.json({
+      message: "Password reset successfully. You can now sign in with your new password.",
+    });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ error: "Failed to reset password" });
+  }
+};
+
+// ==========================
 // CUSTOMER PASSWORD SETUP (TOKEN-BASED)
 // ==========================
 exports.setCustomerPasswordFromToken = async (req, res) => {

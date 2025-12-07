@@ -228,6 +228,71 @@ async function sendEmailCode(userId, email, userName) {
   }
 }
 
+// =====================
+// PASSWORD RESET HELPERS
+// =====================
+
+async function sendPasswordResetEmail(userId, email, userName) {
+  try {
+    if (!email) {
+      throw new Error("Missing email for password reset");
+    }
+
+    // Generate JWT token for password reset (expires in 1 hour)
+    const resetToken = generateJwtToken(
+      {
+        user_id: userId,
+        email: email,
+        purpose: "password_reset",
+      },
+      "1h"
+    );
+
+    const firstName = userName ? userName.split(" ")[0] : "there";
+    const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${resetToken}`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #333;">Reset Your Password</h2>
+        <p>Hi ${firstName},</p>
+        <p>We received a request to reset your password for your StyGo account.</p>
+        <p>Click the button below to reset your password:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}"
+             style="display: inline-block; background: #5469d4; color: white; padding: 14px 28px;
+                    text-decoration: none; border-radius: 6px; font-weight: bold;">
+            Reset Password
+          </a>
+        </div>
+        <p style="color: #666; font-size: 13px;">
+          Or copy and paste this link into your browser:<br>
+          <a href="${resetUrl}" style="color: #5469d4; word-break: break-all;">${resetUrl}</a>
+        </p>
+        <p style="color: #666; font-size: 13px; margin-top: 20px;">
+          This link will expire in 1 hour. If you did not request a password reset, please ignore this email.
+        </p>
+        <p style="margin-top: 30px;">
+          Best regards,<br>
+          The StyGo Team
+        </p>
+      </div>
+    `;
+
+    await sendEmail(email, "Reset Your StyGo Password", html);
+
+    return { success: true, token: resetToken };
+  } catch (error) {
+    console.error("Send password reset email error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// resetPassword is just a wrapper - reuse existing upsertPassword
+async function resetPassword(userId, email, newPassword) {
+  await upsertPassword(userId, email, newPassword);
+  return { success: true };
+}
+
 module.exports = {
   // Manual
   findUserByEmail,
@@ -250,4 +315,7 @@ module.exports = {
   verify2FACode,
   sendSMSCode,
   sendEmailCode,
+
+  // Password Reset
+  sendPasswordResetEmail,
 };
