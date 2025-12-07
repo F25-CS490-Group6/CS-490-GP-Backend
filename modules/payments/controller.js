@@ -10,7 +10,7 @@ const paymentService = require("./service");
  */
 exports.createCheckout = async (req, res) => {
   try {
-    const { amount, appointment_id, type, items, products } = req.body;
+    const { amount, appointment_id, type, items, products, points_to_redeem = 0, salon_id } = req.body;
     const user_id = req.user.user_id || req.user.id || req.user.userId;
 
     if (!user_id) {
@@ -64,7 +64,9 @@ exports.createCheckout = async (req, res) => {
     const result = await paymentService.createCheckoutAndNotify(
       user_id,
       parseFloat(amount),
-      appointment_id
+      appointment_id,
+      points_to_redeem,
+      salon_id
     );
 
     res.json({
@@ -72,6 +74,8 @@ exports.createCheckout = async (req, res) => {
       message: "Payment link sent to your email",
       payment_id: result.payment_id,
       payment_link: result.payment_link,
+      points_redeemed: result.points_redeemed || 0,
+      discount_applied: result.discount_applied || 0,
     });
   } catch (err) {
     console.error("Checkout error:", err);
@@ -94,22 +98,55 @@ exports.getPaymentsForSalon = async (req, res) => {
 };
 
 /**
+ * Create unified checkout (for cart with products + services)
+ * Supports optional loyalty point redemption
+ */
+exports.createUnifiedCheckout = async (req, res) => {
+  try {
+    const { salon_id, cart_id, points_to_redeem = 0 } = req.body;
+    const user_id = req.user.user_id || req.user.id;
+
+    if (!salon_id || !cart_id) {
+      return res.status(400).json({ error: "salon_id and cart_id are required" });
+    }
+
+    const result = await paymentService.createUnifiedCheckout(
+      user_id,
+      salon_id,
+      cart_id,
+      points_to_redeem
+    );
+
+    res.json({
+      success: true,
+      message: "Payment link sent to your email",
+      payment_id: result.payment_id,
+      payment_link: result.payment_link,
+      points_redeemed: points_to_redeem,
+    });
+  } catch (err) {
+    console.error("Create unified checkout error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
  * Get payment details by session ID (for payment success page)
  */
 exports.getPaymentBySessionId = async (req, res) => {
   try {
     const { session_id } = req.query;
-    
+
     if (!session_id) {
       return res.status(400).json({ error: "session_id is required" });
     }
-    
+
     const payment = await paymentService.getPaymentBySessionId(session_id);
-    
+
     if (!payment) {
       return res.status(404).json({ error: "Payment not found" });
     }
-    
+
     res.json({ payment });
   } catch (err) {
     console.error("Get payment by session error:", err);
