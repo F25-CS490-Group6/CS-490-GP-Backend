@@ -10,7 +10,21 @@ exports.addReview = async (appointment_id, user_id, salon_id, staff_id, rating, 
   return result.insertId;
 };
 
-exports.addReviewResponse = async (review_id, response) => {
+exports.addReviewResponse = async (review_id, response, salon_id) => {
+  // Verify the review belongs to the salon
+  const [reviews] = await db.query(
+    `SELECT salon_id FROM reviews WHERE review_id = ?`,
+    [review_id]
+  );
+  
+  if (!reviews || reviews.length === 0) {
+    throw new Error("Review not found");
+  }
+  
+  if (reviews[0].salon_id !== salon_id) {
+    throw new Error("Not authorized to respond to this review");
+  }
+  
   await db.query(`UPDATE reviews SET response = ? WHERE review_id = ?`, [
     response,
     review_id,
@@ -97,6 +111,7 @@ exports.getSalonReviews = async (salonId, currentUserId = null) => {
       r.review_id,
       r.rating,
       r.comment,
+      r.response,
       r.created_at,
       r.user_id,
       u.full_name as customer_name

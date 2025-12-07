@@ -37,12 +37,37 @@ exports.addReview = async (req, res) => {
 exports.addReviewResponse = async (req, res) => {
   try {
     const review_id = req.params.id;
-    const { response } = req.body;
-    await reviewService.addReviewResponse(review_id, response);
-    res.json({ message: "Response added" });
+    const { response, salon_id } = req.body;
+    const userId = req.user?.user_id || req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    if (!salon_id) {
+      return res.status(400).json({ error: "Salon ID is required" });
+    }
+    
+    // Verify user is the salon owner
+    const { db } = require("../../config/database");
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+    
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+    
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to respond to reviews for this salon" });
+    }
+    
+    await reviewService.addReviewResponse(review_id, response, salon_id);
+    res.json({ message: "Response added successfully" });
   } catch (err) {
     console.error("Response error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || "Failed to add response" });
   }
 };
 

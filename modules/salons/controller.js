@@ -35,6 +35,7 @@ exports.getAllSalons = async (req, res) => {
         s.email,
         s.website,
         s.description,
+        s.profile_picture,
         s.status,
         s.created_at,
         u.full_name as owner_name
