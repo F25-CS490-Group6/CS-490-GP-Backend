@@ -389,16 +389,41 @@ exports.getCustomerVisitHistory = async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  const { customerId } = req.params;
+  const { customer_id } = req.params;
+  
+  if (!customer_id) {
+    return res.status(400).json({ error: "Customer ID is required" });
+  }
+  
   try {
-    const history = await query(
-      `select h.*
-        from salon_platform.history h
-        where h.user_id=?`,
-      [customerId]
+    // Verify the salon owner has access to this customer's history
+    // Get salon_id from the owner's user record
+    const userId = req.user?.user_id;
+    const [salonRows] = await db.query(
+      "SELECT salon_id FROM salons WHERE owner_id = ? LIMIT 1",
+      [userId]
     );
-    res.json(history);
+    
+    if (!salonRows || salonRows.length === 0) {
+      return res.status(403).json({ error: "Not authorized - you must be a salon owner" });
+    }
+    
+    // Get customer visit history for this salon
+    const [history] = await db.query(
+      `SELECT h.*, u.full_name AS customer_name, s.full_name AS staff_name, sv.custom_name AS service_name
+       FROM history h
+       LEFT JOIN users u ON h.user_id = u.user_id
+       LEFT JOIN staff st ON h.staff_id = st.staff_id
+       LEFT JOIN users s ON st.user_id = s.user_id
+       LEFT JOIN services sv ON h.service_id = sv.service_id
+       WHERE h.user_id = ? AND h.salon_id = ?
+       ORDER BY h.visit_date DESC`,
+      [customer_id, salonRows[0].salon_id]
+    );
+    
+    res.json({ visits: history });
   } catch (error) {
+    console.error("Customer visit history error:", error);
     res.status(500).json({ error: "Failed to fetch customer visit history" });
   }
 };
@@ -588,35 +613,61 @@ exports.getSalonByIdPublic = async (req, res) => {
 
     // Build SELECT query with only existing columns
     // Include owner_id for messaging functionality
+    // Note: approved field is checked but not returned to public (internal use only)
     const selectFields = ['salon_id', 'name', 'slug', 'address', 'city', 'phone', 'email', 'website', 'description', 'profile_picture', 'status', 'owner_id']
       .filter(col => hasColumn(col))
       .map(col => `s.${col}`)
       .join(', ');
 
+    // Check if approved column exists
+    const hasApprovedColumn = hasColumn('approved');
+    
+    // Build WHERE clause - salon must be approved AND active for public viewing
+    let whereClause = "s.salon_id = ?";
+    if (hasApprovedColumn) {
+      // Salon must be approved AND active to be visible publicly
+      whereClause += " AND s.approved = 'approved' AND s.status = 'active'";
+    } else {
+      // Fallback: only check status if approved column doesn't exist
+      whereClause += " AND s.status = 'active'";
+    }
+
     const salons = await query(
       `SELECT ${selectFields}
       FROM salons s 
-      WHERE s.salon_id = ? AND (s.status = 'active' OR s.status = 'pending')`,
+      WHERE ${whereClause}`,
       [salon_id]
     );
 
     console.log("Query result:", salons?.length || 0, "salons found");
 
     if (!salons || salons.length === 0) {
-      // Check if salon exists but is not active
+      // Check if salon exists but is not approved/active
       const existingSalon = await query(
-        `SELECT salon_id, status FROM salons WHERE salon_id = ?`,
+        `SELECT salon_id, status${hasApprovedColumn ? ', approved' : ''} FROM salons WHERE salon_id = ?`,
         [salon_id]
       );
       
       console.log("Existing salon check:", existingSalon?.length || 0, "found");
       
       if (existingSalon && existingSalon.length > 0) {
-        console.log("Salon exists but status is:", existingSalon[0].status);
-        return res.status(404).json({ 
-          error: "Salon not available",
-          message: `This salon exists but is currently ${existingSalon[0].status}. Only active salons are visible to customers.`
-        });
+        const salon = existingSalon[0];
+        console.log("Salon exists but status is:", salon.status, hasApprovedColumn ? `approved: ${salon.approved}` : '');
+        
+        // Provide helpful error messages
+        if (hasApprovedColumn && salon.approved !== 'approved') {
+          return res.status(404).json({ 
+            error: "Salon not available",
+            message: `This salon exists but is not yet approved. Current approval status: ${salon.approved}.`
+          });
+        }
+        
+        if (salon.status !== 'active') {
+          return res.status(404).json({ 
+            error: "Salon not available",
+            message: `This salon exists but is currently ${salon.status}. Only active salons are visible to customers.`
+          });
+        }
       }
       
       console.log("Salon not found in database");

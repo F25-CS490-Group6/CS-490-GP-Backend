@@ -221,8 +221,19 @@ async function updateSalonAmenities(salonId, amenities) {
  * Get salon booking settings
  */
 async function getSalonBookingSettings(salonId) {
+  // Check which columns exist in the salon_settings table
+  const [columns] = await db.query("SHOW COLUMNS FROM salon_settings");
+  const columnNames = columns.map(col => col.Field);
+  const hasColumn = (colName) => columnNames.includes(colName);
+
+  // Build SELECT query dynamically based on available columns
+  const selectFields = ['cancellation_policy', 'auto_complete_after'];
+  if (hasColumn('deposit_percentage')) {
+    selectFields.push('deposit_percentage');
+  }
+
   const [rows] = await db.query(
-    `SELECT cancellation_policy, auto_complete_after, deposit_percentage FROM salon_settings WHERE salon_id = ?`,
+    `SELECT ${selectFields.join(', ')} FROM salon_settings WHERE salon_id = ?`,
     [salonId]
   );
 
@@ -237,7 +248,7 @@ async function getSalonBookingSettings(salonId) {
   return {
     cancellationPolicy: rows[0].cancellation_policy || "",
     advanceBookingDays: rows[0].auto_complete_after || 30,
-    depositPercentage: parseFloat(rows[0].deposit_percentage) || 0,
+    depositPercentage: hasColumn('deposit_percentage') ? (parseFloat(rows[0].deposit_percentage) || 0) : 0,
   };
 }
 
@@ -251,15 +262,34 @@ async function updateSalonBookingSettings(salonId, bookingSettings) {
   const days = advanceBookingDays || 30;
   const deposit = depositPercentage !== undefined ? Math.max(0, Math.min(100, parseFloat(depositPercentage) || 0)) : 0;
 
+  // Check which columns exist in the salon_settings table
+  const [columns] = await db.query("SHOW COLUMNS FROM salon_settings");
+  const columnNames = columns.map(col => col.Field);
+  const hasColumn = (colName) => columnNames.includes(colName);
+
+  // Build the INSERT/UPDATE query dynamically based on available columns
+  const fieldsToUpdate = ['salon_id', 'cancellation_policy', 'auto_complete_after'];
+  const values = [salonId, policy, days];
+  
+  // Only include deposit_percentage if the column exists
+  if (hasColumn('deposit_percentage')) {
+    fieldsToUpdate.push('deposit_percentage');
+    values.push(deposit);
+  }
+
+  const fieldsPlaceholder = fieldsToUpdate.map(() => '?').join(', ');
+  const updateClause = fieldsToUpdate
+    .filter(field => field !== 'salon_id') // Don't update salon_id
+    .map(field => `${field} = VALUES(${field})`)
+    .join(', ');
+
   // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
   await db.query(
-    `INSERT INTO salon_settings (salon_id, cancellation_policy, auto_complete_after, deposit_percentage) 
-     VALUES (?, ?, ?, ?)
+    `INSERT INTO salon_settings (${fieldsToUpdate.join(', ')}) 
+     VALUES (${fieldsPlaceholder})
      ON DUPLICATE KEY UPDATE 
-       cancellation_policy = VALUES(cancellation_policy),
-       auto_complete_after = VALUES(auto_complete_after),
-       deposit_percentage = VALUES(deposit_percentage)`,
-    [salonId, policy, days, deposit]
+       ${updateClause}`,
+    values
   );
 
   return { success: true };

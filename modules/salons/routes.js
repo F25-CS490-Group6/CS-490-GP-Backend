@@ -74,6 +74,13 @@ router.get(
   verifyAnyToken,
   salonController.getUserVisitHistory
 );
+// Salon owner: Get customer visit history
+// As a salon owner, I want to see customer visit histories so that I can provide personalized service
+router.get(
+  "/customers/:customer_id/history",
+  verifyAnyToken,
+  salonController.getCustomerVisitHistory
+);
 
 // POST route for creating a salon - use upload.any() to handle all form fields including files
 router.post("/", verifyAnyToken, upload.any(), salonController.createSalon);
