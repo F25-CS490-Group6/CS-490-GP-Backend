@@ -5,8 +5,9 @@ const { sendEmail } = require("../../services/email");
 
 /**
  * Create Stripe checkout session and send payment link email
+ * Supports optional loyalty point redemption
  */
-exports.createCheckoutAndNotify = async (user_id, amount, appointment_id) => {
+exports.createCheckoutAndNotify = async (user_id, amount, appointment_id, points_to_redeem = 0, salon_id = null) => {
   // 1. Get user and appointment details
   const [[user]] = await db.query(
     "SELECT email, full_name FROM users WHERE user_id = ?",
@@ -28,6 +29,42 @@ exports.createCheckoutAndNotify = async (user_id, amount, appointment_id) => {
   if (!user || !appointment) {
     throw new Error("User or appointment not found");
   }
+
+  // Use salon_id from appointment if not provided
+  const effective_salon_id = salon_id || appointment.salon_id;
+
+  // 1.5. Calculate loyalty discount if points provided
+  let discount = 0;
+  let actualPointsRedeemed = 0;
+  const subtotal = amount;
+
+  if (points_to_redeem > 0 && effective_salon_id) {
+    const loyaltyService = require("../loyalty/service");
+    try {
+      // Validate user has enough points
+      const userPoints = await loyaltyService.getLoyaltyPoints(user_id, effective_salon_id);
+      if (userPoints < points_to_redeem) {
+        throw new Error(`You only have ${userPoints} points available`);
+      }
+
+      // Calculate discount from points
+      discount = await loyaltyService.calculateDiscount(effective_salon_id, points_to_redeem);
+
+      // Ensure discount doesn't exceed subtotal
+      if (discount > subtotal) {
+        discount = subtotal;
+        const config = await loyaltyService.getLoyaltyConfig(effective_salon_id);
+        actualPointsRedeemed = Math.ceil(discount / config.redeem_rate);
+      } else {
+        actualPointsRedeemed = points_to_redeem;
+      }
+    } catch (err) {
+      console.error('Loyalty redemption error:', err);
+      throw new Error(`Loyalty redemption error: ${err.message}`);
+    }
+  }
+
+  const finalAmount = subtotal - discount;
 
   // 2. Get all individual services for the appointment
   const [services] = await db.query(
@@ -66,31 +103,53 @@ exports.createCheckoutAndNotify = async (user_id, amount, appointment_id) => {
         },
       ];
 
-  // 3. Create Stripe Checkout Session
+  // 3. Create Stripe Checkout Session with discount if applicable
+  // Apply discount to line items proportionally
+  const discountedLineItems = discount > 0 && lineItems.length > 0
+    ? lineItems.map((item, index) => {
+        // Calculate proportional discount for each item
+        const itemTotal = item.price_data.unit_amount * item.quantity;
+        const totalBeforeDiscount = lineItems.reduce((sum, li) => sum + (li.price_data.unit_amount * li.quantity), 0);
+        const itemDiscount = Math.round((itemTotal / totalBeforeDiscount) * (discount * 100));
+
+        return {
+          ...item,
+          price_data: {
+            ...item.price_data,
+            unit_amount: Math.max(0, item.price_data.unit_amount - itemDiscount)
+          }
+        };
+      })
+    : lineItems;
+
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
-    line_items: lineItems,
+    line_items: discountedLineItems,
     mode: "payment",
     success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.FRONTEND_URL}/payment-canceled`,
     metadata: {
       appointment_id: appointment_id,
       user_id: user_id,
+      salon_id: effective_salon_id,
+      points_redeemed: actualPointsRedeemed.toString(),
+      subtotal: subtotal.toFixed(2),
+      discount: discount.toFixed(2),
     },
   });
 
-  // 4. Save payment record
+  // 4. Save payment record with final amount
   const [result] = await db.query(
     `INSERT INTO payments
     (user_id, amount, payment_method, payment_status, appointment_id, stripe_checkout_session_id, payment_link)
     VALUES (?, ?, 'stripe', 'pending', ?, ?, ?)`,
-    [user_id, amount, appointment_id, session.id, session.url]
+    [user_id, finalAmount, appointment_id, session.id, session.url]
   );
 
   // 5. Send email notification with payment link
   const servicesList = services.length > 0
     ? services.map(s => `<li>${s.custom_name} - $${Number(s.price).toFixed(2)}</li>`).join('')
-    : `<li>${appointment.service_name || 'Appointment'} - $${amount.toFixed(2)}</li>`;
+    : `<li>${appointment.service_name || 'Appointment'} - $${subtotal.toFixed(2)}</li>`;
 
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -105,13 +164,19 @@ exports.createCheckoutAndNotify = async (user_id, amount, appointment_id) => {
         <ul style="margin: 10px 0; padding-left: 20px;">
           ${servicesList}
         </ul>
-        <p style="margin-top: 15px; font-size: 18px;"><strong>Total Amount:</strong> $${amount.toFixed(2)}</p>
+        ${discount > 0 ? `
+          <p style="margin-top: 15px;"><strong>Subtotal:</strong> $${subtotal.toFixed(2)}</p>
+          <p style="color: #28a745;"><strong>Loyalty Discount:</strong> -$${discount.toFixed(2)} (${actualPointsRedeemed} points)</p>
+          <p style="font-size: 18px; font-weight: bold;"><strong>Total Amount:</strong> $${finalAmount.toFixed(2)}</p>
+        ` : `
+          <p style="margin-top: 15px; font-size: 18px;"><strong>Total Amount:</strong> $${finalAmount.toFixed(2)}</p>
+        `}
       </div>
 
       <a href="${session.url}"
          style="display: inline-block; background: #5469d4; color: white; padding: 14px 28px;
                 text-decoration: none; border-radius: 6px; font-weight: bold;">
-        Pay Now - $${amount.toFixed(2)}
+        Pay Now - $${finalAmount.toFixed(2)}
       </a>
 
       <p style="color: #666; font-size: 13px; margin-top: 20px;">
@@ -132,6 +197,8 @@ exports.createCheckoutAndNotify = async (user_id, amount, appointment_id) => {
     payment_id: result.insertId,
     payment_link: session.url,
     checkout_session_id: session.id,
+    points_redeemed: actualPointsRedeemed,
+    discount_applied: discount,
   };
 };
 
@@ -246,6 +313,7 @@ exports.createProductCheckoutAndNotify = async (user_id, amount, items) => {
 
 /**
  * Confirm payment (called by webhook)
+ * Handles loyalty point redemption and awarding
  */
 exports.confirmPayment = async (checkoutSessionId, paymentIntentId) => {
   await db.query(
@@ -255,17 +323,154 @@ exports.confirmPayment = async (checkoutSessionId, paymentIntentId) => {
     [paymentIntentId, checkoutSessionId]
   );
 
-  // Get appointment_id and update appointment status
+  // Get payment details
   const [[payment]] = await db.query(
-    "SELECT appointment_id FROM payments WHERE stripe_checkout_session_id = ?",
+    "SELECT appointment_id, user_id, amount FROM payments WHERE stripe_checkout_session_id = ?",
     [checkoutSessionId]
   );
 
-  if (payment?.appointment_id) {
-    await db.query(
-      "UPDATE appointments SET status = 'confirmed' WHERE appointment_id = ?",
-      [payment.appointment_id]
+  // Get session metadata to check payment type
+  const session = await stripe.checkout.sessions.retrieve(checkoutSessionId);
+  const isDepositPayment = session.metadata?.payment_type === 'deposit';
+  const { salon_id, points_redeemed, subtotal, appointment_id: metadataAppointmentId, user_id: metadataUserId } = session.metadata || {};
+
+  // Use appointment_id from metadata first (for legacy checkouts), then from payment record
+  const resolvedAppointmentId = metadataAppointmentId || payment?.appointment_id;
+  
+  // Get salon_id from appointment if not in metadata
+  let resolvedSalonId = salon_id;
+  if (!resolvedSalonId && resolvedAppointmentId) {
+    const [[appointment]] = await db.query(
+      "SELECT salon_id FROM appointments WHERE appointment_id = ?",
+      [resolvedAppointmentId]
     );
+    if (appointment) {
+      resolvedSalonId = appointment.salon_id;
+    }
+  }
+
+  // Use user_id from metadata or payment record
+  const resolvedUserId = metadataUserId || payment?.user_id;
+
+  if (resolvedAppointmentId) {
+    // Get payment_id to link to appointment
+    const [[paymentRecord]] = await db.query(
+      "SELECT payment_id FROM payments WHERE stripe_checkout_session_id = ?",
+      [checkoutSessionId]
+    );
+    
+    if (!paymentRecord) {
+      console.error(`[Payment] No payment record found for session ${checkoutSessionId}`);
+      return;
+    }
+    
+    // For deposit payments, appointment is already confirmed, just ensure status is correct
+    // For full payments, confirm the appointment
+    if (!isDepositPayment) {
+      await db.query(
+        "UPDATE appointments SET status = 'confirmed' WHERE appointment_id = ?",
+        [resolvedAppointmentId]
+      );
+      console.log(`[Payment] Confirmed appointment ${resolvedAppointmentId} for payment ${paymentRecord.payment_id}`);
+    }
+    
+    // Link payment to appointment (this is how we check if appointment is paid)
+    await db.query(
+      "UPDATE payments SET appointment_id = ? WHERE payment_id = ?",
+      [resolvedAppointmentId, paymentRecord.payment_id]
+    );
+    console.log(`[Payment] Linked payment ${paymentRecord.payment_id} to appointment ${resolvedAppointmentId}`);
+  }
+
+  // Process loyalty points if metadata includes them
+  // Note: For deposit payments, we don't award points yet - points will be awarded when full payment is made
+  try {
+    if (!isDepositPayment) {
+      if (resolvedSalonId && resolvedUserId) {
+        console.log(`[Loyalty] Processing loyalty points for legacy checkout: user ${resolvedUserId}, salon ${resolvedSalonId}, subtotal: ${subtotal}, points_redeemed: ${points_redeemed}`);
+        const loyaltyService = require("../loyalty/service");
+
+        // Get starting balance for verification
+        const startingPoints = await loyaltyService.getLoyaltyPoints(resolvedUserId, resolvedSalonId);
+        console.log(`[Loyalty] ===== Starting loyalty points processing (legacy checkout) =====`);
+        console.log(`[Loyalty] User ${resolvedUserId}, Salon ${resolvedSalonId}`);
+        console.log(`[Loyalty] Starting balance: ${startingPoints} points`);
+        console.log(`[Loyalty] Subtotal: $${subtotal}, Points to redeem: ${points_redeemed || 0}`);
+        
+        let pointsAfterRedemption = startingPoints;
+        
+        // STEP 1: Redeem points that were used for discount (DEDUCT FIRST)
+        if (points_redeemed && parseInt(points_redeemed) > 0) {
+          const pointsToRedeem = parseInt(points_redeemed);
+          console.log(`[Loyalty] STEP 1: Redeeming ${pointsToRedeem} points...`);
+          console.log(`[Loyalty] Balance before redemption: ${pointsAfterRedemption} points`);
+          
+          await loyaltyService.redeemLoyaltyPoints(resolvedUserId, resolvedSalonId, pointsToRedeem);
+          
+          pointsAfterRedemption = await loyaltyService.getLoyaltyPoints(resolvedUserId, resolvedSalonId);
+          console.log(`[Loyalty] Balance after redemption: ${pointsAfterRedemption} points`);
+          console.log(`[Loyalty] ✅ Verified: ${startingPoints} - ${pointsToRedeem} = ${pointsAfterRedemption} (expected: ${startingPoints - pointsToRedeem})`);
+          
+          if (pointsAfterRedemption !== (startingPoints - pointsToRedeem)) {
+            console.error(`[Loyalty] ❌ REDEMPTION MATH ERROR! Expected ${startingPoints - pointsToRedeem}, got ${pointsAfterRedemption}`);
+          }
+        }
+
+        // STEP 2: Award new points based on purchase amount (ADD AFTER REDEMPTION)
+        const purchaseAmount = parseFloat(subtotal) || payment?.amount || 0;
+        console.log(`[Loyalty] STEP 2: Awarding points for purchase amount: $${purchaseAmount}...`);
+        console.log(`[Loyalty] Balance before awarding: ${pointsAfterRedemption} points`);
+        
+        const pointsEarned = await loyaltyService.awardPointsForPurchase(resolvedUserId, resolvedSalonId, purchaseAmount);
+        console.log(`[Loyalty] Points earned from purchase: ${pointsEarned} points`);
+        
+        // Verify final balance
+        const finalPoints = await loyaltyService.getLoyaltyPoints(resolvedUserId, resolvedSalonId);
+        console.log(`[Loyalty] Final balance: ${finalPoints} points`);
+        console.log(`[Loyalty] ✅ Verified: ${pointsAfterRedemption} + ${pointsEarned} = ${finalPoints} (expected: ${pointsAfterRedemption + pointsEarned})`);
+        
+        if (finalPoints !== (pointsAfterRedemption + pointsEarned)) {
+          console.error(`[Loyalty] ❌ AWARD MATH ERROR! Expected ${pointsAfterRedemption + pointsEarned}, got ${finalPoints}`);
+        }
+        
+        // Overall verification
+        const expectedFinal = startingPoints - (parseInt(points_redeemed) || 0) + pointsEarned;
+        console.log(`[Loyalty] ===== Summary (legacy checkout) =====`);
+        console.log(`[Loyalty] Starting: ${startingPoints} points`);
+        console.log(`[Loyalty] Redeemed: -${points_redeemed || 0} points`);
+        console.log(`[Loyalty] Earned: +${pointsEarned} points`);
+        console.log(`[Loyalty] Expected final: ${expectedFinal} points`);
+        console.log(`[Loyalty] Actual final: ${finalPoints} points`);
+        
+        if (finalPoints !== expectedFinal) {
+          console.error(`[Loyalty] ❌ OVERALL MATH ERROR! Expected ${expectedFinal}, got ${finalPoints}`);
+        } else {
+          console.log(`[Loyalty] ✅ All loyalty point calculations verified correctly!`);
+        }
+      } else {
+        console.warn(`[Loyalty] Cannot process loyalty points: resolvedSalonId=${resolvedSalonId}, resolvedUserId=${resolvedUserId}`);
+      }
+    } else {
+      // For deposit payments, send notification that deposit was received
+      const notificationService = require("../notifications/service");
+      const { appointment_id, user_id, salon_id } = session.metadata || {};
+      if (appointment_id && user_id) {
+        const [[appointment]] = await db.query(
+          `SELECT a.*, s.name as salon_name FROM appointments a JOIN salons s ON a.salon_id = s.salon_id WHERE a.appointment_id = ?`,
+          [appointment_id]
+        );
+        if (appointment) {
+          await notificationService.createNotification(
+            user_id,
+            "appointment",
+            `Your deposit of $${payment.amount.toFixed(2)} for ${appointment.salon_name} has been received. Your appointment is confirmed!`
+          );
+        }
+      }
+    }
+  } catch (loyaltyErr) {
+    console.error('Loyalty processing error (non-fatal):', loyaltyErr);
+    // Don't fail the whole transaction if loyalty fails
   }
 };
 
@@ -477,39 +682,873 @@ exports.createCombinedCheckoutAndNotify = async (user_id, amount, appointment_id
  * Used for payment success page
  */
 exports.getPaymentBySessionId = async (sessionId) => {
-  const [payments] = await db.query(
+  // First, get the payment record
+  const [[payment]] = await db.query(
     `SELECT 
       p.payment_id,
       p.amount,
       p.payment_method,
       p.payment_status,
       p.created_at AS payment_date,
-      a.appointment_id,
-      a.scheduled_time,
-      a.price AS appointment_price,
-      s.name AS salon_name,
-      GROUP_CONCAT(sv.custom_name SEPARATOR ', ') AS service_name,
-      su.full_name AS staff_name
+      p.appointment_id
      FROM payments p
-     LEFT JOIN appointments a ON p.appointment_id = a.appointment_id
-     LEFT JOIN salons s ON a.salon_id = s.salon_id
-     LEFT JOIN appointment_services asv ON a.appointment_id = asv.appointment_id
-     LEFT JOIN services sv ON asv.service_id = sv.service_id
-     LEFT JOIN staff st ON a.staff_id = st.staff_id
-     LEFT JOIN users su ON st.user_id = su.user_id
-     WHERE p.stripe_checkout_session_id = ?
-     GROUP BY p.payment_id, a.appointment_id`,
+     WHERE p.stripe_checkout_session_id = ?`,
     [sessionId]
   );
   
-  if (!payments || payments.length === 0) {
+  if (!payment) {
     return null;
   }
-  
-  const payment = payments[0];
+
   // Ensure amount is a number
   payment.amount = Number(payment.amount) || 0;
-  payment.appointment_price = Number(payment.appointment_price) || 0;
+
+  // Get cart_id from Stripe session metadata (for unified checkouts)
+  let cart_id = null;
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    cart_id = session.metadata?.cart_id;
+  } catch (err) {
+    console.error("Error retrieving Stripe session:", err);
+  }
+
+  // If there's an appointment_id, get appointment details
+  if (payment.appointment_id) {
+    const [[appointmentData]] = await db.query(
+      `SELECT 
+        a.appointment_id,
+        a.scheduled_time,
+        a.price AS appointment_price,
+        s.name AS salon_name,
+        GROUP_CONCAT(sv.custom_name SEPARATOR ', ') AS service_name,
+        su.full_name AS staff_name
+       FROM appointments a
+       LEFT JOIN salons s ON a.salon_id = s.salon_id
+       LEFT JOIN appointment_services asv ON a.appointment_id = asv.appointment_id
+       LEFT JOIN services sv ON asv.service_id = sv.service_id
+       LEFT JOIN staff st ON a.staff_id = st.staff_id
+       LEFT JOIN users su ON st.user_id = su.user_id
+       WHERE a.appointment_id = ?
+       GROUP BY a.appointment_id`,
+      [payment.appointment_id]
+    );
+
+    if (appointmentData) {
+      payment.scheduled_time = appointmentData.scheduled_time;
+      payment.appointment_price = Number(appointmentData.appointment_price) || 0;
+      payment.salon_name = appointmentData.salon_name;
+      payment.service_name = appointmentData.service_name;
+      payment.staff_name = appointmentData.staff_name;
+      payment.stylist_name = appointmentData.staff_name;
+    }
+  } else if (cart_id) {
+    // For unified checkout (cart with products/services), get cart details
+    const [[cartData]] = await db.query(
+      `SELECT 
+        c.salon_id,
+        s.name AS salon_name
+       FROM carts c
+       LEFT JOIN salons s ON c.salon_id = s.salon_id
+       WHERE c.cart_id = ?`,
+      [cart_id]
+    );
+
+    if (cartData) {
+      payment.salon_name = cartData.salon_name;
+      payment.salon_id = cartData.salon_id;
+    }
+
+    // Get cart items for display
+    const [cartItems] = await db.query(
+      `SELECT 
+        ci.type,
+        ci.quantity,
+        ci.price,
+        CASE
+          WHEN ci.type = 'product' THEN p.name
+          WHEN ci.type = 'service' THEN s.custom_name
+        END as item_name
+       FROM cart_items ci
+       LEFT JOIN products p ON ci.product_id = p.product_id
+       LEFT JOIN services s ON ci.service_id = s.service_id
+       WHERE ci.cart_id = ?`,
+      [cart_id]
+    );
+
+    payment.cart_items = cartItems || [];
+  }
   
   return payment;
+};
+exports.createUnifiedCheckout = async (user_id, salon_id, cart_id, points_to_redeem = 0) => {
+  const loyaltyService = require("../loyalty/service");
+  // 1. Get user details
+  const [[user]] = await db.query(
+    "SELECT email, full_name FROM users WHERE user_id = ?",
+    [user_id]
+  );
+
+  // 2. Get salon details
+  const [[salon]] = await db.query(
+    "SELECT salon_name FROM salons WHERE salon_id = ?",
+    [salon_id]
+  );
+
+  // 3. Verify cart exists and is active
+  const [[cart]] = await db.query(
+    `SELECT cart_id, status FROM carts WHERE cart_id = ? AND user_id = ? AND salon_id = ?`,
+    [cart_id, user_id, salon_id]
+  );
+
+  if (!cart) {
+    throw new Error("Cart not found");
+  }
+
+  // If cart is in pending_payment status, check if there's an active payment
+  // If payment exists and is still pending, allow checkout (user might be retrying)
+  // Only clear if payment is expired or cancelled
+  if (cart.status === 'pending_payment') {
+    // Check if there's a recent pending payment for this cart (within last 30 minutes)
+    const [pendingPayments] = await db.query(
+      `SELECT payment_id, created_at FROM payments 
+       WHERE user_id = ? AND payment_status = 'pending' 
+       AND created_at > DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+       ORDER BY created_at DESC LIMIT 1`,
+      [user_id]
+    );
+    
+    if (pendingPayments.length > 0) {
+      // There's a recent pending payment - allow checkout to proceed (might be retry)
+      console.log(`[Payment] Cart in pending_payment but recent payment exists (${pendingPayments[0].payment_id}), allowing checkout`);
+    } else {
+      // No recent payment - previous checkout was likely cancelled/expired
+      // Clear all items from the cart since payment was cancelled
+      await db.query(
+        `DELETE FROM cart_items WHERE cart_id = ?`,
+        [cart_id]
+      );
+      // Reset cart status to active
+      await db.query(
+        `UPDATE carts SET status = 'active' WHERE cart_id = ?`,
+        [cart_id]
+      );
+      // Return empty cart - user needs to add items again
+      throw new Error("Your previous checkout was cancelled or expired. Please add items to your cart again.");
+    }
+  }
+
+  if (cart.status !== 'active' && cart.status !== 'pending_payment') {
+    throw new Error(`Cart is not available (status: ${cart.status}). Please create a new cart.`);
+  }
+
+  // 4. Get all cart items (products + services) - only from active cart
+  // Filter out services for past/completed/paid appointments
+  const [cartItems] = await db.query(
+    `SELECT
+      ci.item_id,
+      ci.type,
+      ci.quantity,
+      ci.price,
+      ci.notes,
+      CASE
+        WHEN ci.type = 'product' THEN p.name
+        WHEN ci.type = 'service' THEN s.custom_name
+      END as item_name,
+      CASE
+        WHEN ci.type = 'product' THEN p.description
+        WHEN ci.type = 'service' THEN s.description
+      END as item_description,
+      a.appointment_id,
+      a.scheduled_time,
+      a.status as appointment_status
+     FROM cart_items ci
+     LEFT JOIN products p ON ci.product_id = p.product_id
+     LEFT JOIN services s ON ci.service_id = s.service_id
+     LEFT JOIN appointments a ON a.appointment_id = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(ci.notes, 'Appointment #', -1), ' ', 1) AS UNSIGNED)
+     JOIN carts c ON ci.cart_id = c.cart_id
+     WHERE ci.cart_id = ? AND c.status = 'active'
+     AND (
+       ci.type = 'product'
+       OR
+       (ci.type = 'service' 
+        AND ci.notes LIKE 'Appointment #%'
+        AND a.appointment_id IS NOT NULL
+        AND a.status IN ('confirmed', 'pending')
+        AND a.scheduled_time > NOW()
+        AND NOT EXISTS (
+          -- Exclude appointments that have been paid for (completed payments)
+          SELECT 1 FROM payments p 
+          WHERE p.appointment_id = a.appointment_id 
+          AND p.payment_status = 'completed'
+        ))
+     )`,
+    [cart_id]
+  );
+  
+  // Delete any invalid service items from the cart (cleanup)
+  await db.query(
+    `DELETE ci FROM cart_items ci
+     JOIN carts c ON ci.cart_id = c.cart_id
+     WHERE ci.cart_id = ? AND ci.type = 'service' AND ci.notes LIKE 'Appointment #%'
+     AND (
+       NOT EXISTS (
+         SELECT 1 FROM appointments a 
+         WHERE a.appointment_id = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(ci.notes, 'Appointment #', -1), ' ', 1) AS UNSIGNED)
+         AND a.status IN ('confirmed', 'pending')
+         AND a.scheduled_time > NOW()
+       )
+     )`,
+    [cart_id]
+  );
+
+  if (!cartItems || cartItems.length === 0) {
+    throw new Error("Cart is empty. Please add items to your cart before checkout.");
+  }
+
+  // 5. Calculate total and apply loyalty discount
+  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  let discount = 0;
+  let actualPointsRedeemed = 0;
+
+  if (points_to_redeem > 0) {
+    try {
+      // Validate user has enough points
+      const userPoints = await loyaltyService.getLoyaltyPoints(user_id, salon_id);
+      if (userPoints < points_to_redeem) {
+        throw new Error(`You only have ${userPoints} points available`);
+      }
+
+      // Calculate discount from points
+      discount = await loyaltyService.calculateDiscount(salon_id, points_to_redeem);
+
+      // Ensure discount doesn't exceed subtotal
+      if (discount > subtotal) {
+        discount = subtotal;
+        // Recalculate points needed for this discount
+        const config = await loyaltyService.getLoyaltyConfig(salon_id);
+        actualPointsRedeemed = Math.ceil(discount / config.redeem_rate);
+      } else {
+        actualPointsRedeemed = points_to_redeem;
+      }
+    } catch (err) {
+      throw new Error(`Loyalty redemption error: ${err.message}`);
+    }
+  }
+
+  const total = subtotal - discount;
+
+  // 6. Create Stripe line items
+  const lineItems = cartItems.map(item => ({
+    price_data: {
+      currency: "usd",
+      product_data: {
+        name: `${item.item_name}`,
+        description: item.item_description || (item.type === 'service' ? 'Service' : 'Product'),
+      },
+      unit_amount: Math.round(item.price * 100),
+    },
+    quantity: item.quantity,
+  }));
+
+  // 7. Create Stripe Checkout Session
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    line_items: lineItems,
+    mode: "payment",
+    success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.FRONTEND_URL}/payment-canceled`,
+    metadata: {
+      user_id: user_id,
+      salon_id: salon_id,
+      cart_id: cart_id,
+      checkout_type: 'unified',
+      points_redeemed: actualPointsRedeemed.toString(),
+      subtotal: subtotal.toFixed(2),
+      discount: discount.toFixed(2),
+    },
+  });
+
+  // 7. Save payment record with cart_id
+  const [result] = await db.query(
+    `INSERT INTO payments
+    (user_id, amount, payment_method, payment_status, stripe_checkout_session_id, payment_link)
+    VALUES (?, ?, 'stripe', 'pending', ?, ?)`,
+    [user_id, total, session.id, session.url]
+  );
+
+  // 8. Update cart status to 'pending_payment' to prevent duplicate checkouts
+  // Only update AFTER payment record is successfully created
+  await db.query(
+    `UPDATE carts SET status = 'pending_payment' WHERE cart_id = ?`,
+    [cart_id]
+  );
+
+  // 9. Send email notification
+  const itemsList = cartItems.map(item =>
+    `<li><strong>${item.item_name}</strong> ${item.type === 'product' ? `(x${item.quantity})` : ''} - $${(item.price * item.quantity).toFixed(2)}</li>`
+  ).join('');
+
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #333;">Complete Your Payment</h2>
+      <p>Hi ${user.full_name},</p>
+      <p>Your order is ready! Please complete your payment to confirm:</p>
+
+      <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <p><strong>Salon:</strong> ${salon.salon_name}</p>
+        <p><strong>Items:</strong></p>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+          ${itemsList}
+        </ul>
+        ${discount > 0 ? `
+          <p style="margin-top: 15px;"><strong>Subtotal:</strong> $${subtotal.toFixed(2)}</p>
+          <p style="color: #28a745;"><strong>Loyalty Discount:</strong> -$${discount.toFixed(2)} (${actualPointsRedeemed} points)</p>
+        ` : ''}
+        <p style="font-size: 18px; font-weight: bold; margin-top: 15px;">
+          <strong>Total:</strong> $${total.toFixed(2)}
+        </p>
+      </div>
+
+      <a href="${session.url}"
+         style="display: inline-block; background: #5469d4; color: white; padding: 14px 28px;
+                text-decoration: none; border-radius: 6px; font-weight: bold;">
+        Pay Now - $${total.toFixed(2)}
+      </a>
+
+      <p style="color: #666; font-size: 13px; margin-top: 20px;">
+        This link expires in 24 hours.
+      </p>
+
+      <p>Thank you,<br>${salon.salon_name}</p>
+    </div>
+  `;
+
+  await sendEmail(
+    user.email,
+    `Payment Required - ${salon.salon_name} Order`,
+    emailHtml
+  );
+
+  return {
+    payment_id: result.insertId,
+    payment_link: session.url,
+    checkout_session_id: session.id,
+  };
+};
+
+/**
+ * Process unified checkout completion (called by webhook)
+ */
+exports.confirmUnifiedCheckout = async (checkoutSessionId, paymentIntentId) => {
+  const loyaltyService = require("../loyalty/service");
+
+  // 1. Update payment status
+  await db.query(
+    `UPDATE payments
+    SET payment_status = 'completed', stripe_payment_intent_id = ?
+    WHERE stripe_checkout_session_id = ?`,
+    [paymentIntentId, checkoutSessionId]
+  );
+
+  // 2. Get the checkout session metadata to find cart_id
+  const session = await stripe.checkout.sessions.retrieve(checkoutSessionId);
+  const { cart_id, salon_id, user_id, points_redeemed, subtotal } = session.metadata;
+
+  if (!cart_id) {
+    console.error("No cart_id in session metadata");
+    return;
+  }
+
+  // 3. Get payment_id
+  const [[payment]] = await db.query(
+    "SELECT payment_id, amount FROM payments WHERE stripe_checkout_session_id = ?",
+    [checkoutSessionId]
+  );
+
+  // 4. Get all cart items
+  const [cartItems] = await db.query(
+    `SELECT * FROM cart_items WHERE cart_id = ?`,
+    [cart_id]
+  );
+
+  // 5. Create order for products
+  const productItems = cartItems.filter(item => item.type === 'product');
+  if (productItems.length > 0) {
+    // Calculate product total
+    const productTotal = productItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    const [orderResult] = await db.query(
+      `INSERT INTO orders (user_id, salon_id, total_amount, payment_id, payment_status, order_status)
+       VALUES (?, ?, ?, ?, 'paid', 'completed')`,
+      [user_id, salon_id, productTotal, payment.payment_id]
+    );
+
+    const order_id = orderResult.insertId;
+
+    // Add order items
+    for (const item of productItems) {
+      await db.query(
+        `INSERT INTO order_items (order_id, product_id, quantity, price, type)
+         VALUES (?, ?, ?, ?, 'product')`,
+        [order_id, item.product_id, item.quantity, item.price]
+      );
+    }
+  }
+
+  // 6. Confirm appointments for services
+  const serviceItems = cartItems.filter(item => item.type === 'service');
+  if (serviceItems.length > 0) {
+    // Extract appointment IDs from notes (format: "Appointment #123")
+    const appointmentIds = serviceItems
+      .map(item => {
+        const match = item.notes?.match(/Appointment #(\d+)/);
+        return match ? match[1] : null;
+      })
+      .filter(id => id !== null);
+
+    // Update appointment statuses and link payment
+    for (const appointment_id of [...new Set(appointmentIds)]) {
+      console.log(`[Payment] Linking payment ${payment.payment_id} to appointment ${appointment_id}`);
+      
+      // Update appointment status
+      await db.query(
+        "UPDATE appointments SET status = 'confirmed' WHERE appointment_id = ?",
+        [appointment_id]
+      );
+
+      // Link payment to appointment (this is how we check if appointment is paid)
+      const [updateResult] = await db.query(
+        "UPDATE payments SET appointment_id = ? WHERE payment_id = ?",
+        [appointment_id, payment.payment_id]
+      );
+      
+      console.log(`[Payment] ✅ Linked payment ${payment.payment_id} to appointment ${appointment_id} (affected rows: ${updateResult.affectedRows})`);
+      
+      // Verify the link was created
+      const [[verifyPayment]] = await db.query(
+        "SELECT appointment_id FROM payments WHERE payment_id = ?",
+        [payment.payment_id]
+      );
+      console.log(`[Payment] Verification: payment ${payment.payment_id} now has appointment_id = ${verifyPayment?.appointment_id || 'NULL'}`);
+    }
+  }
+
+  // 7. Delete cart items and mark cart as checked out
+  await db.query(
+    `DELETE FROM cart_items WHERE cart_id = ?`,
+    [cart_id]
+  );
+  await db.query(
+    `UPDATE carts SET status = 'checked_out' WHERE cart_id = ?`,
+    [cart_id]
+  );
+
+  // 8. Process loyalty points
+  try {
+    // Get starting balance for verification
+    const startingPoints = await loyaltyService.getLoyaltyPoints(user_id, salon_id);
+    console.log(`[Loyalty] ===== Starting loyalty points processing =====`);
+    console.log(`[Loyalty] User ${user_id}, Salon ${salon_id}`);
+    console.log(`[Loyalty] Starting balance: ${startingPoints} points`);
+    console.log(`[Loyalty] Subtotal: $${subtotal}, Points to redeem: ${points_redeemed || 0}`);
+    
+    let pointsAfterRedemption = startingPoints;
+    
+    // STEP 1: Redeem points that were used for discount (DEDUCT FIRST)
+    if (points_redeemed && parseInt(points_redeemed) > 0) {
+      const pointsToRedeem = parseInt(points_redeemed);
+      console.log(`[Loyalty] STEP 1: Redeeming ${pointsToRedeem} points...`);
+      console.log(`[Loyalty] Balance before redemption: ${pointsAfterRedemption} points`);
+      
+      await loyaltyService.redeemLoyaltyPoints(user_id, salon_id, pointsToRedeem);
+      
+      pointsAfterRedemption = await loyaltyService.getLoyaltyPoints(user_id, salon_id);
+      console.log(`[Loyalty] Balance after redemption: ${pointsAfterRedemption} points`);
+      console.log(`[Loyalty] ✅ Verified: ${startingPoints} - ${pointsToRedeem} = ${pointsAfterRedemption} (expected: ${startingPoints - pointsToRedeem})`);
+      
+      if (pointsAfterRedemption !== (startingPoints - pointsToRedeem)) {
+        console.error(`[Loyalty] ❌ REDEMPTION MATH ERROR! Expected ${startingPoints - pointsToRedeem}, got ${pointsAfterRedemption}`);
+      }
+    }
+
+    // STEP 2: Award new points based on purchase amount (ADD AFTER REDEMPTION)
+    const purchaseAmount = parseFloat(subtotal) || payment.amount;
+    console.log(`[Loyalty] STEP 2: Awarding points for purchase amount: $${purchaseAmount}...`);
+    console.log(`[Loyalty] Balance before awarding: ${pointsAfterRedemption} points`);
+    
+    const pointsEarned = await loyaltyService.awardPointsForPurchase(user_id, salon_id, purchaseAmount);
+    console.log(`[Loyalty] Points earned from purchase: ${pointsEarned} points`);
+    
+    // Verify final balance
+    const finalPoints = await loyaltyService.getLoyaltyPoints(user_id, salon_id);
+    console.log(`[Loyalty] Final balance: ${finalPoints} points`);
+    console.log(`[Loyalty] ✅ Verified: ${pointsAfterRedemption} + ${pointsEarned} = ${finalPoints} (expected: ${pointsAfterRedemption + pointsEarned})`);
+    
+    if (finalPoints !== (pointsAfterRedemption + pointsEarned)) {
+      console.error(`[Loyalty] ❌ AWARD MATH ERROR! Expected ${pointsAfterRedemption + pointsEarned}, got ${finalPoints}`);
+    }
+    
+    // Overall verification
+    const expectedFinal = startingPoints - (parseInt(points_redeemed) || 0) + pointsEarned;
+    console.log(`[Loyalty] ===== Summary =====`);
+    console.log(`[Loyalty] Starting: ${startingPoints} points`);
+    console.log(`[Loyalty] Redeemed: -${points_redeemed || 0} points`);
+    console.log(`[Loyalty] Earned: +${pointsEarned} points`);
+    console.log(`[Loyalty] Expected final: ${expectedFinal} points`);
+    console.log(`[Loyalty] Actual final: ${finalPoints} points`);
+    
+    if (finalPoints !== expectedFinal) {
+      console.error(`[Loyalty] ❌ OVERALL MATH ERROR! Expected ${expectedFinal}, got ${finalPoints}`);
+    } else {
+      console.log(`[Loyalty] ✅ All loyalty point calculations verified correctly!`);
+    }
+  } catch (loyaltyErr) {
+    console.error('[Loyalty] Loyalty processing error (non-fatal):', loyaltyErr);
+    console.error('[Loyalty] Error stack:', loyaltyErr.stack);
+    // Don't fail the whole transaction if loyalty fails
+  }
+};
+
+/**
+ * Create pay-in-store payment record
+ */
+exports.createPayInStorePayment = async (user_id, amount, appointment_id, points_to_redeem = 0, salon_id = null, deposit_amount = null) => {
+  const notificationService = require("../notifications/service");
+  const loyaltyService = require("../loyalty/service");
+
+  // Verify appointment exists and belongs to user
+  const [[appointment]] = await db.query(
+    `SELECT a.*, s.name as salon_name, s.owner_id, s.salon_id
+     FROM appointments a
+     JOIN salons s ON a.salon_id = s.salon_id
+     WHERE a.appointment_id = ? AND a.user_id = ?`,
+    [appointment_id, user_id]
+  );
+
+  if (!appointment) {
+    throw new Error("Appointment not found");
+  }
+
+  const resolvedSalonId = salon_id || appointment.salon_id;
+  let finalAmount = amount;
+  let actualPointsRedeemed = 0;
+  
+  // Get deposit percentage from salon settings if not provided
+  let depositAmount = deposit_amount;
+  if (depositAmount === null || depositAmount === undefined) {
+    const [[settings]] = await db.query(
+      `SELECT deposit_percentage FROM salon_settings WHERE salon_id = ?`,
+      [resolvedSalonId]
+    );
+    const depositPercentage = settings?.deposit_percentage ? parseFloat(settings.deposit_percentage) : 0;
+    if (depositPercentage > 0) {
+      depositAmount = (finalAmount * depositPercentage) / 100;
+    } else {
+      depositAmount = 0;
+    }
+  }
+  
+  let depositSessionId = null;
+  let depositPaymentLink = null;
+
+  // Handle loyalty points redemption
+  if (points_to_redeem > 0) {
+    try {
+      // Get starting balance for verification
+      const startingPoints = await loyaltyService.getLoyaltyPoints(user_id, resolvedSalonId);
+      console.log(`[Loyalty] ===== Starting loyalty points redemption (pay-in-store) =====`);
+      console.log(`[Loyalty] User ${user_id}, Salon ${resolvedSalonId}`);
+      console.log(`[Loyalty] Starting balance: ${startingPoints} points`);
+      console.log(`[Loyalty] Points to redeem: ${points_to_redeem}`);
+      
+      // Validate user has enough points
+      if (startingPoints < points_to_redeem) {
+        throw new Error(`You only have ${startingPoints} points available`);
+      }
+
+      // Calculate discount from points
+      const discount = await loyaltyService.calculateDiscount(resolvedSalonId, points_to_redeem);
+
+      // Ensure discount doesn't exceed amount
+      if (discount > amount) {
+        finalAmount = 0;
+        // Recalculate points needed for this discount
+        const config = await loyaltyService.getLoyaltyConfig(resolvedSalonId);
+        actualPointsRedeemed = Math.ceil(amount / config.redeem_rate);
+      } else {
+        finalAmount = amount - discount;
+        actualPointsRedeemed = points_to_redeem;
+      }
+
+      // Redeem points
+      if (actualPointsRedeemed > 0) {
+        console.log(`[Loyalty] Redeeming ${actualPointsRedeemed} points (adjusted from ${points_to_redeem})...`);
+        console.log(`[Loyalty] Balance before redemption: ${startingPoints} points`);
+        
+        await loyaltyService.redeemLoyaltyPoints(user_id, resolvedSalonId, actualPointsRedeemed);
+        
+        const pointsAfter = await loyaltyService.getLoyaltyPoints(user_id, resolvedSalonId);
+        console.log(`[Loyalty] Balance after redemption: ${pointsAfter} points`);
+        console.log(`[Loyalty] ✅ Verified: ${startingPoints} - ${actualPointsRedeemed} = ${pointsAfter} (expected: ${startingPoints - actualPointsRedeemed})`);
+        
+        if (pointsAfter !== (startingPoints - actualPointsRedeemed)) {
+          console.error(`[Loyalty] ❌ REDEMPTION MATH ERROR! Expected ${startingPoints - actualPointsRedeemed}, got ${pointsAfter}`);
+        }
+      }
+    } catch (err) {
+      throw new Error(`Loyalty redemption error: ${err.message}`);
+    }
+  }
+
+  // If deposit is required, create Stripe checkout for deposit
+  if (depositAmount > 0) {
+    // Get user details for email
+    const [[user]] = await db.query(
+      "SELECT email, full_name FROM users WHERE user_id = ?",
+      [user_id]
+    );
+
+    // Get appointment services for line items
+    const [services] = await db.query(
+      `SELECT asv.service_id, sv.custom_name, asv.price
+       FROM appointment_services asv
+       JOIN services sv ON asv.service_id = sv.service_id
+       WHERE asv.appointment_id = ?`,
+      [appointment_id]
+    );
+
+    // Create line item for deposit
+    const depositLineItem = {
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: `Deposit for ${appointment.salon_name}`,
+          description: `Deposit payment for appointment on ${new Date(appointment.scheduled_time || appointment.appointment_date).toLocaleString()}`,
+        },
+        unit_amount: Math.round(depositAmount * 100),
+      },
+      quantity: 1,
+    };
+
+    // Create Stripe checkout session for deposit
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [depositLineItem],
+      mode: "payment",
+      success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/payment-canceled`,
+      metadata: {
+        appointment_id: appointment_id,
+        user_id: user_id,
+        salon_id: resolvedSalonId,
+        payment_type: "deposit",
+        total_amount: finalAmount.toFixed(2),
+        deposit_amount: depositAmount.toFixed(2),
+        points_redeemed: actualPointsRedeemed.toString(),
+      },
+    });
+
+    depositSessionId = session.id;
+    depositPaymentLink = session.url;
+
+    // Send email with deposit payment link
+    if (user) {
+      const servicesList = services.length > 0
+        ? services.map(s => `<li>${s.custom_name} - $${Number(s.price).toFixed(2)}</li>`).join('')
+        : `<li>Appointment - $${finalAmount.toFixed(2)}</li>`;
+
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Pay Deposit to Confirm Appointment</h2>
+          <p>Hi ${user.full_name},</p>
+          <p>Your appointment at <strong>${appointment.salon_name}</strong> requires a deposit payment to confirm.</p>
+
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Appointment Details:</strong></p>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+              ${servicesList}
+            </ul>
+            <p style="margin-top: 15px;"><strong>Total Amount:</strong> $${finalAmount.toFixed(2)}</p>
+            <p><strong>Deposit Required:</strong> $${depositAmount.toFixed(2)}</p>
+            <p style="color: #666; font-size: 13px;">You will pay the remaining balance when you arrive at the salon.</p>
+          </div>
+
+          <a href="${session.url}"
+             style="display: inline-block; background: #5469d4; color: white; padding: 14px 28px;
+                    text-decoration: none; border-radius: 6px; font-weight: bold;">
+            Pay Deposit - $${depositAmount.toFixed(2)}
+          </a>
+
+          <p style="color: #666; font-size: 13px; margin-top: 20px;">
+            This link expires in 24 hours.
+          </p>
+
+          <p>Thank you,<br>${appointment.salon_name}</p>
+        </div>
+      `;
+
+      await sendEmail(user.email, "Pay Deposit to Confirm Appointment", emailHtml);
+    }
+  }
+
+  // Create payment record
+  // If deposit is required, status is 'pending' until deposit is paid
+  // If no deposit, status is 'pending' (will be paid in store)
+  const [result] = await db.query(
+    `INSERT INTO payments
+    (user_id, amount, payment_method, payment_status, appointment_id, stripe_checkout_session_id, payment_link)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      user_id,
+      finalAmount,
+      depositAmount > 0 ? 'stripe' : 'cash',
+      depositAmount > 0 ? 'pending' : 'pending',
+      appointment_id,
+      depositSessionId,
+      depositPaymentLink
+    ]
+  );
+
+  const payment_id = result.insertId;
+
+  // Link payment to appointment and update status
+  // For no-deposit payments, mark as completed immediately
+  // For deposit payments, keep status as pending until deposit is paid
+  if (depositAmount === 0) {
+    // No deposit required - payment is complete
+    await db.query(
+      "UPDATE appointments SET status = 'confirmed' WHERE appointment_id = ?",
+      [appointment_id]
+    );
+    await db.query(
+      "UPDATE payments SET payment_status = 'completed' WHERE payment_id = ?",
+      [payment_id]
+    );
+  }
+  
+  // Link payment to appointment (this is how we check if appointment is paid)
+  await db.query(
+    "UPDATE payments SET appointment_id = ? WHERE payment_id = ?",
+    [appointment_id, payment_id]
+  );
+
+  // Award loyalty points for "pay in store" payments without deposit (points awarded immediately)
+  // For deposit payments, points will be awarded when full payment is completed
+  if (depositAmount === 0) {
+    try {
+      const loyaltyService = require("../loyalty/service");
+      
+      // Get starting balance for verification
+      const startingPoints = await loyaltyService.getLoyaltyPoints(user_id, resolvedSalonId);
+      const redeemedPoints = actualPointsRedeemed || 0;
+      
+      console.log(`[Loyalty] ===== Starting loyalty points processing (pay-in-store, no deposit) =====`);
+      console.log(`[Loyalty] User ${user_id}, Salon ${resolvedSalonId}`);
+      console.log(`[Loyalty] Starting balance: ${startingPoints} points`);
+      console.log(`[Loyalty] Points redeemed: ${redeemedPoints}`);
+      console.log(`[Loyalty] Purchase amount: $${finalAmount}`);
+      
+      let pointsAfterRedemption = startingPoints;
+      
+      // If points were redeemed earlier, we need to account for that
+      if (redeemedPoints > 0) {
+        pointsAfterRedemption = startingPoints - redeemedPoints;
+        console.log(`[Loyalty] Balance after redemption: ${pointsAfterRedemption} points`);
+      }
+      
+      // Award points for purchase
+      console.log(`[Loyalty] Awarding points for purchase amount: $${finalAmount}...`);
+      console.log(`[Loyalty] Balance before awarding: ${pointsAfterRedemption} points`);
+      
+      const pointsEarned = await loyaltyService.awardPointsForPurchase(user_id, resolvedSalonId, finalAmount);
+      console.log(`[Loyalty] Points earned from purchase: ${pointsEarned} points`);
+      
+      // Verify final balance
+      const finalPoints = await loyaltyService.getLoyaltyPoints(user_id, resolvedSalonId);
+      console.log(`[Loyalty] Final balance: ${finalPoints} points`);
+      console.log(`[Loyalty] ✅ Verified: ${pointsAfterRedemption} + ${pointsEarned} = ${finalPoints} (expected: ${pointsAfterRedemption + pointsEarned})`);
+      
+      if (finalPoints !== (pointsAfterRedemption + pointsEarned)) {
+        console.error(`[Loyalty] ❌ AWARD MATH ERROR! Expected ${pointsAfterRedemption + pointsEarned}, got ${finalPoints}`);
+      }
+      
+      // Overall verification
+      const expectedFinal = startingPoints - redeemedPoints + pointsEarned;
+      console.log(`[Loyalty] ===== Summary (pay-in-store) =====`);
+      console.log(`[Loyalty] Starting: ${startingPoints} points`);
+      console.log(`[Loyalty] Redeemed: -${redeemedPoints} points`);
+      console.log(`[Loyalty] Earned: +${pointsEarned} points`);
+      console.log(`[Loyalty] Expected final: ${expectedFinal} points`);
+      console.log(`[Loyalty] Actual final: ${finalPoints} points`);
+      
+      if (finalPoints !== expectedFinal) {
+        console.error(`[Loyalty] ❌ OVERALL MATH ERROR! Expected ${expectedFinal}, got ${finalPoints}`);
+      } else {
+        console.log(`[Loyalty] ✅ All loyalty point calculations verified correctly!`);
+      }
+    } catch (loyaltyErr) {
+      console.error("[Loyalty] Error awarding loyalty points for pay-in-store payment:", loyaltyErr);
+      console.error("[Loyalty] Error stack:", loyaltyErr.stack);
+      // Don't fail the transaction if loyalty fails
+    }
+  }
+
+  // Send notification to customer
+  try {
+    const notificationMessage = depositAmount > 0
+      ? `Your appointment at ${appointment.salon_name} requires a $${depositAmount.toFixed(2)} deposit. Please check your email to complete the deposit payment.`
+      : `Your appointment at ${appointment.salon_name} is confirmed. Please pay when you arrive.`;
+    
+    await notificationService.createNotification(
+      user_id,
+      "appointment",
+      notificationMessage
+    );
+  } catch (notificationError) {
+    console.error("Error creating notification:", notificationError);
+  }
+
+  // Send notification to salon owner
+  try {
+    if (appointment.owner_id) {
+      const ownerMessage = depositAmount > 0
+        ? `New appointment requires deposit payment. Customer will pay remaining balance in store.`
+        : `New appointment confirmed. Customer will pay in store.`;
+      
+      await notificationService.createNotification(
+        appointment.owner_id,
+        "appointment",
+        ownerMessage
+      );
+    }
+  } catch (notificationError) {
+    console.error("Error creating owner notification:", notificationError);
+  }
+
+  return { 
+    payment_id,
+    points_redeemed: actualPointsRedeemed,
+    discount_applied: amount - finalAmount,
+    deposit_required: depositAmount > 0,
+    deposit_amount: depositAmount,
+    payment_link: depositPaymentLink,
+  };
+};
+
+/**
+ * Reset cart status from pending_payment back to active (for cancelled/expired payments)
+ * Also clears all items from the cart
+ */
+exports.resetCartStatus = async (cart_id) => {
+  // Clear all items from the cart
+  await db.query(
+    `DELETE FROM cart_items WHERE cart_id = ?`,
+    [cart_id]
+  );
+  // Reset cart status to active
+  await db.query(
+    `UPDATE carts SET status = 'active' WHERE cart_id = ? AND status = 'pending_payment'`,
+    [cart_id]
+  );
 };

@@ -17,19 +17,35 @@ exports.handleWebhook = async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  console.log(`Stripe webhook: ${event.type}`);
+  console.log(`[Webhook] Received event: ${event.type}`);
 
   try {
     switch (event.type) {
       case "checkout.session.completed":
         const session = event.data.object;
-        await paymentService.confirmPayment(session.id, session.payment_intent);
-        console.log(`Payment confirmed for session ${session.id}`);
+        console.log(`[Webhook] Processing checkout.session.completed for session ${session.id}`);
+        console.log(`[Webhook] Session metadata:`, JSON.stringify(session.metadata, null, 2));
+
+        // Check if this is a unified checkout (cart with products + services)
+        if (session.metadata?.checkout_type === 'unified') {
+          console.log(`[Webhook] Detected unified checkout, calling confirmUnifiedCheckout`);
+          await paymentService.confirmUnifiedCheckout(session.id, session.payment_intent);
+          console.log(`[Webhook] Unified checkout confirmed for session ${session.id}`);
+        } else {
+          // Legacy appointment-only checkout
+          console.log(`[Webhook] Detected legacy checkout, calling confirmPayment`);
+          await paymentService.confirmPayment(session.id, session.payment_intent);
+          console.log(`[Webhook] Payment confirmed for session ${session.id}`);
+        }
         break;
 
       case "checkout.session.expired":
         const expired = event.data.object;
         await paymentService.failPayment(expired.id, "Session expired");
+        // Reset cart status if it was a unified checkout
+        if (expired.metadata?.checkout_type === 'unified' && expired.metadata?.cart_id) {
+          await paymentService.resetCartStatus(expired.metadata.cart_id);
+        }
         break;
     }
   } catch (err) {
