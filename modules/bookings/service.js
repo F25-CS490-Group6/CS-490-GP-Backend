@@ -1,6 +1,36 @@
 //bookings/service.js
 const { db } = require("../../config/database");
 
+/**
+ * Convert datetime to MySQL DATETIME format (YYYY-MM-DD HH:MM:SS)
+ * Handles ISO 8601 strings, Date objects, and other formats
+ */
+function formatDateTimeForMySQL(datetime) {
+  let date;
+  if (typeof datetime === 'string') {
+    date = new Date(datetime);
+  } else if (datetime instanceof Date) {
+    date = datetime;
+  } else {
+    date = new Date(datetime);
+  }
+
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid datetime: ${datetime}`);
+  }
+
+  // Format as YYYY-MM-DD HH:MM:SS
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 exports.getAvailableBarbersAndSlots = async () => {
   const salonService = require("../salons/service");
   const [barbers] = await db.query(
@@ -53,7 +83,7 @@ exports.getAvailableBarbersAndSlots = async () => {
          FROM appointments a
          LEFT JOIN appointment_services aps ON a.appointment_id = aps.appointment_id
          WHERE a.staff_id = ? 
-         AND a.status IN ('pending', 'confirmed', 'booked')
+         AND a.status IN ('pending', 'confirmed')
          AND a.scheduled_time BETWEEN ? AND ?
          GROUP BY a.appointment_id, a.staff_id, a.scheduled_time, a.status`,
         [barber.staff_id, day, nextDay]
@@ -143,8 +173,13 @@ exports.getAvailableBarbersAndSlots = async () => {
 
 /**
  * Get available time slots for a specific salon, staff member, date, and service
+ * @param {number} salon_id - Salon ID
+ * @param {number} staff_id - Staff ID
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @param {number|null} service_id - Optional service ID
+ * @param {number|null} excludeAppointmentId - Optional appointment ID to exclude from availability check (for rescheduling)
  */
-exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) => {
+exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null, excludeAppointmentId = null) => {
   const salonService = require("../salons/service");
   
   // Parse the date (format: YYYY-MM-DD) as local date, not UTC
@@ -226,8 +261,8 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
   const dayEnd = new Date(selectedDate);
   dayEnd.setHours(23, 59, 59, 999);
   
-  const [appointments] = await db.query(
-    `SELECT 
+  // Build query to exclude the appointment being rescheduled if provided
+  let appointmentQuery = `SELECT 
       a.appointment_id,
       a.scheduled_time,
       a.status,
@@ -236,10 +271,28 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
      LEFT JOIN appointment_services aps ON a.appointment_id = aps.appointment_id
      WHERE a.staff_id = ? 
      AND a.status IN ('pending', 'confirmed', 'booked')
-     AND a.scheduled_time >= ? AND a.scheduled_time < ?
-     GROUP BY a.appointment_id, a.scheduled_time, a.status`,
-    [effectiveDuration, staff_id, dayStart, dayEnd]
-  );
+     AND a.scheduled_time >= ? AND a.scheduled_time < ?`;
+  
+  const appointmentParams = [effectiveDuration, staff_id, dayStart, dayEnd];
+  
+  if (excludeAppointmentId) {
+    appointmentQuery += ` AND a.appointment_id != ?`;
+    appointmentParams.push(excludeAppointmentId);
+    console.log(`[getAvailableSlots] Excluding appointment ${excludeAppointmentId} from availability check`);
+  }
+  
+  appointmentQuery += ` GROUP BY a.appointment_id, a.scheduled_time, a.status`;
+  
+  const [appointments] = await db.query(appointmentQuery, appointmentParams);
+  console.log(`[getAvailableSlots] Found ${appointments.length} appointments for staff ${staff_id} on ${date}${excludeAppointmentId ? ` (excluding ${excludeAppointmentId})` : ''}`);
+  if (appointments.length > 0) {
+    console.log(`[getAvailableSlots] Appointments:`, appointments.map(a => ({
+      id: a.appointment_id,
+      time: a.scheduled_time,
+      duration: a.duration_minutes,
+      status: a.status
+    })));
+  }
   
   // Get staff time off for this date
   const [timeoffs] = await db.query(
@@ -271,6 +324,9 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
   const now = new Date();
   let slot = new Date(start);
   
+  console.log(`[getAvailableSlots] Generating slots from ${start.toLocaleTimeString()} to ${end.toLocaleTimeString()}, effectiveDuration: ${effectiveDuration}min, bufferTime: ${bufferTime}min`);
+  console.log(`[getAvailableSlots] Current time: ${now.toLocaleString()}`);
+  
   while (slot < end) {
     const slotEnd = new Date(slot.getTime() + effectiveDuration * 60000);
     
@@ -278,6 +334,8 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
     if (slotEnd > end) {
       break;
     }
+    
+    const slotTimeStr = slot.toTimeString().substring(0, 5);
     
     // Skip past time slots (if the slot end time is in the past, skip it)
     if (slotEnd <= now) {
@@ -294,12 +352,14 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
       
       if (slot < timeoffEnd && slotEnd > timeoffStart) {
         blocked = true;
+        console.log(`[getAvailableSlots] Slot ${slotTimeStr} blocked by time off: ${timeoffStart.toLocaleString()} - ${timeoffEnd.toLocaleString()}`);
         break;
       }
     }
     
     // Check if slot is booked
     let booked = false;
+    let blockingAppointment = null;
     for (const appointment of appointments) {
       const appointmentStart = new Date(appointment.scheduled_time);
       const appointmentDuration = (appointment.duration_minutes || effectiveDuration) * 60000;
@@ -311,6 +371,7 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
       
       if (appointmentStart < slotEndWithBuffer && appointmentEnd > slotWithBuffer) {
         booked = true;
+        blockingAppointment = appointment;
         break;
       }
     }
@@ -320,6 +381,8 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
       const timeStr = slot.toTimeString();
       const time = timeStr.substring(0, 5); // HH:MM format
       availableSlots.push(time);
+    } else if (booked && blockingAppointment) {
+      console.log(`[getAvailableSlots] Slot ${slotTimeStr} blocked by appointment ${blockingAppointment.appointment_id} at ${new Date(blockingAppointment.scheduled_time).toLocaleTimeString()}`);
     }
     
     // Move to next slot (accounting for buffer time)
@@ -333,7 +396,7 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
 
 exports.checkSlotAvailability = async (staff_id, scheduled_time) => {
   // Check if there's already an active appointment that overlaps with this time
-  // Include pending, confirmed, and booked statuses as they all block the slot
+  // Include pending and confirmed statuses as they all block the slot
   // Check for appointments that start within 30 minutes before or after the requested time
   // This accounts for typical service durations and prevents double-booking
   const scheduledTime = new Date(scheduled_time);
@@ -368,12 +431,15 @@ exports.bookAppointment = async (user_id, salon_id, staff_id, service_id, schedu
     throw new Error("User ID is required");
   }
 
+  // Convert datetime to MySQL format
+  const mysqlDateTime = formatDateTimeForMySQL(scheduled_time);
+
   // Note: service_id parameter is kept for backward compatibility but not inserted
   // The appointments table doesn't have a service_id column
   const result = await db.query(
     `INSERT INTO appointments (user_id, salon_id, staff_id, scheduled_time, status)
      VALUES (?, ?, ?, ?, 'booked')`,
-    [user_id, salon_id, staff_id, scheduled_time]
+    [user_id, salon_id, staff_id, mysqlDateTime]
   );
   // MySQL2 returns [result, fields] where result has insertId
   const insertResult = Array.isArray(result) ? result[0] : result;
@@ -414,22 +480,88 @@ exports.getAppointmentById = async (appointment_id) => {
 };
 
 exports.rescheduleAppointment = async (appointment_id, new_scheduled_time) => {
+  // Convert datetime to MySQL format
+  const mysqlDateTime = formatDateTimeForMySQL(new_scheduled_time);
+
+  // Use 'confirmed' instead of 'booked' - 'booked' is not a valid ENUM value
+  // Valid status values: 'pending', 'confirmed', 'completed', 'cancelled'
   await db.query(
-    `UPDATE appointments SET scheduled_time = ?, status = 'booked' WHERE appointment_id = ?`,
-    [new_scheduled_time, appointment_id]
+    `UPDATE appointments SET scheduled_time = ?, status = 'confirmed' WHERE appointment_id = ?`,
+    [mysqlDateTime, appointment_id]
   );
 };
 
 exports.checkRescheduleAvailability = async (staff_id, new_scheduled_time, appointment_id) => {
-  const [count] = await db.query(
-    `SELECT COUNT(*) AS count FROM appointments 
-     WHERE staff_id = ? AND status = 'booked' AND scheduled_time = ? AND appointment_id != ?`,
-    [staff_id, new_scheduled_time, appointment_id]
+  // Get appointment details to get salon_id and service_id
+  const [currentAppt] = await db.query(
+    `SELECT a.appointment_id, a.scheduled_time, a.salon_id,
+            COALESCE(SUM(aps.duration), 30) as duration_minutes,
+            GROUP_CONCAT(aps.service_id) as service_ids
+     FROM appointments a
+     LEFT JOIN appointment_services aps ON a.appointment_id = aps.appointment_id
+     WHERE a.appointment_id = ?
+     GROUP BY a.appointment_id, a.scheduled_time, a.salon_id`,
+    [appointment_id]
   );
-  if (count[0].count === 0) {
-    return true;
+  
+  if (!currentAppt || currentAppt.length === 0) {
+    console.log(`[checkRescheduleAvailability] Appointment ${appointment_id} not found`);
+    return false;
   }
-  return false;
+  
+  const salon_id = currentAppt[0]?.salon_id;
+  const service_ids = currentAppt[0]?.service_ids;
+  // Get first service_id if available
+  const service_id = service_ids ? parseInt(service_ids.split(',')[0]) : null;
+  
+  // Parse the new scheduled time - it comes as ISO string from frontend
+  // We need to extract date and time in local timezone to match getAvailableSlots
+  const newScheduledTime = new Date(new_scheduled_time);
+  
+  // Extract date components in local timezone (same way getAvailableSlots does)
+  const year = newScheduledTime.getFullYear();
+  const month = String(newScheduledTime.getMonth() + 1).padStart(2, '0');
+  const day = String(newScheduledTime.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`;
+  
+  console.log(`[checkRescheduleAvailability] Parsed date: ${dateStr} from ${new_scheduled_time}`);
+  console.log(`[checkRescheduleAvailability] New scheduled time (local): ${newScheduledTime.toLocaleString()}`);
+  console.log(`[checkRescheduleAvailability] New scheduled time (ISO): ${newScheduledTime.toISOString()}`);
+  console.log(`[checkRescheduleAvailability] Using service_id: ${service_id}, salon_id: ${salon_id}, staff_id: ${staff_id}`);
+  console.log(`[checkRescheduleAvailability] service_ids from DB: ${service_ids}`);
+  
+  // Get available slots for this date, excluding the current appointment
+  // This uses the exact same logic as getAvailableSlots
+  // IMPORTANT: Pass the same service_id (or null) that was used when fetching slots in the frontend
+  // If service_id is null/undefined, both calls should use null to ensure consistency
+  const availableSlots = await exports.getAvailableSlots(
+    salon_id,
+    staff_id,
+    dateStr,
+    service_id || null, // Use null if service_id is undefined to match frontend behavior
+    appointment_id // Exclude this appointment
+  );
+  
+  // Extract the time from the new scheduled time (HH:MM format) in LOCAL timezone
+  // This matches how getAvailableSlots generates time strings
+  const hours = String(newScheduledTime.getHours()).padStart(2, '0');
+  const minutes = String(newScheduledTime.getMinutes()).padStart(2, '0');
+  const timeStr = `${hours}:${minutes}`;
+  
+  console.log(`[checkRescheduleAvailability] Extracted time string: ${timeStr}`);
+  console.log(`[checkRescheduleAvailability] Available slots:`, availableSlots);
+  console.log(`[checkRescheduleAvailability] Checking if ${timeStr} is in available slots...`);
+  
+  // Check if the selected time is in the available slots list
+  const isAvailable = availableSlots.includes(timeStr);
+  
+  console.log(`[checkRescheduleAvailability] Time ${timeStr} is ${isAvailable ? 'AVAILABLE ✓' : 'NOT AVAILABLE ✗'}`);
+  
+  if (!isAvailable && availableSlots.length > 0) {
+    console.log(`[checkRescheduleAvailability] WARNING: Selected time ${timeStr} not in available slots list: ${availableSlots.join(', ')}`);
+  }
+  
+  return isAvailable;
 };
 
 exports.cancelAppointment = async (appointment_id) => {
@@ -451,7 +583,7 @@ exports.getBarberSchedule = async (staff_id) => {
      LEFT JOIN appointment_services aps ON a.appointment_id = aps.appointment_id
      LEFT JOIN services s ON aps.service_id = s.service_id
      LEFT JOIN users u ON a.user_id = u.user_id
-     WHERE a.staff_id = ? AND DATE(a.scheduled_time) = CURDATE() AND a.status = 'booked'
+     WHERE a.staff_id = ? AND DATE(a.scheduled_time) = CURDATE() AND a.status = 'confirmed'
      GROUP BY a.appointment_id
      ORDER BY a.scheduled_time`,
     [staff_id]

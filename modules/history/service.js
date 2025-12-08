@@ -13,6 +13,7 @@ exports.getUserHistory = async (user_id) => {
       a.created_at,
       s.full_name AS staff_name,
       GROUP_CONCAT(sv.custom_name SEPARATOR ', ') AS service_name,
+      GROUP_CONCAT(sv.service_id SEPARATOR ',') AS service_id,
       sl.name AS salon_name
      FROM appointments a
      LEFT JOIN staff st ON a.staff_id = st.staff_id
@@ -25,7 +26,11 @@ exports.getUserHistory = async (user_id) => {
      ORDER BY a.scheduled_time DESC`,
     [user_id]
   );
-  return rows;
+  // Convert service_id from comma-separated string to first service_id as number
+  return rows.map(row => ({
+    ...row,
+    service_id: row.service_id ? parseInt(row.service_id.split(',')[0]) : null
+  }));
 };
 
 exports.getSalonVisitHistory = async (salon_id) => {

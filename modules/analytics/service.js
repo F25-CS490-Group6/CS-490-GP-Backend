@@ -405,8 +405,8 @@ async function getDashboardAnalytics({ salonId, days = 7 }) {
       SELECT
         DATE(a.scheduled_time) AS day,
         COUNT(*) AS total,
-        SUM(CASE WHEN a.status = 'booked' THEN 1 ELSE 0 END) AS confirmed,
-        SUM(CASE WHEN a.status = 'booked' THEN 0 ELSE 0 END) AS pending,
+        SUM(CASE WHEN a.status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed,
+        SUM(CASE WHEN a.status = 'pending' THEN 1 ELSE 0 END) AS pending,
         SUM(CASE WHEN a.status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled,
         SUM(CASE WHEN a.status = 'completed' THEN 1 ELSE 0 END) AS completed
       FROM appointments a

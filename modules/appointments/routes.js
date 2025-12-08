@@ -51,7 +51,7 @@ router.get(
 router.put(
   "/:id",
   verifyAnyToken,
-  checkRoles("staff", "owner"),
+  checkRoles("customer", "staff", "owner"),
   appointmentController.updateAppointment
 );
 

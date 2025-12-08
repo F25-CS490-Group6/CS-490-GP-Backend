@@ -546,6 +546,30 @@ exports.updateAppointment = async (req, res) => {
       return res.status(403).json({ error: "Forbidden: cross-salon access" });
     }
 
+    // For customers, check if they own this appointment and only allow rescheduling
+    const userId = req.user?.user_id || req.user?.id;
+    if (role === "customer") {
+      if (appointment.user_id !== userId) {
+        return res.status(403).json({ error: "You can only update your own appointments" });
+      }
+      // Customers can only reschedule (update scheduled_time), not change status or other fields
+      if (updates.hasOwnProperty("status") && updates.status !== appointment.status) {
+        return res.status(403).json({ error: "Customers cannot change appointment status" });
+      }
+      // Validate that the new time slot is available before allowing reschedule
+      if (timeChanged && oldScheduledTime !== newScheduledTime) {
+        const bookingService = require("../bookings/service");
+        const available = await bookingService.checkRescheduleAvailability(
+          appointment.staff_id,
+          newScheduledTime,
+          id
+        );
+        if (!available) {
+          return res.status(400).json({ error: "Time slot not available" });
+        }
+      }
+    }
+
     // If scheduled_time is being updated, cancel old reminders and schedule new ones
     const timeChanged =
       updates.hasOwnProperty("scheduledTime") ||
