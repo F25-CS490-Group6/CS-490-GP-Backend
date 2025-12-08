@@ -202,7 +202,19 @@ exports.getPaymentBySessionId = async (req, res) => {
       const confirmationPromise = (async () => {
         try {
           const stripe = require("../../config/stripe");
-      const session = await stripe.checkout.sessions.retrieve(session_id);
+          // Add rate limiting: only check Stripe if payment status is not completed
+          const [[paymentCheck]] = await db.query(
+            `SELECT payment_status FROM payments WHERE stripe_checkout_session_id = ?`,
+            [session_id]
+          );
+          
+          // If payment is already completed, skip Stripe API call to avoid rate limits
+          if (paymentCheck?.payment_status === 'completed') {
+            console.log(`[Payment] Payment already completed, skipping Stripe API call to avoid rate limits`);
+            return payment;
+          }
+          
+          const session = await stripe.checkout.sessions.retrieve(session_id);
       console.log(`[Payment] Checking session ${session_id}: payment_status=${session.payment_status}`);
       console.log(`[Payment] Session metadata:`, JSON.stringify(session.metadata, null, 2));
       
