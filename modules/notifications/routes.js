@@ -13,5 +13,9 @@ router.get("/", verifyAnyToken, notificationController.getUserNotifications);
 router.put("/:id/read", verifyAnyToken, notificationController.markNotificationRead);
 router.put("/read-all", verifyAnyToken, notificationController.markAllNotificationsRead);
 
+// Salon owner endpoints for promotional offers
+router.post("/loyal-customers", verifyAnyToken, notificationController.getLoyalCustomers);
+router.post("/send-promotion", verifyAnyToken, notificationController.sendPromotionToCustomers);
+
 module.exports = router;
 

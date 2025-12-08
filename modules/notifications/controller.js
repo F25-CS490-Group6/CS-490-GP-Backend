@@ -96,3 +96,101 @@ exports.markAllNotificationsRead = async (req, res) => {
   }
 };
 
+/**
+ * Get loyal customers for a salon
+ * POST /api/notifications/loyal-customers
+ * Body: { salon_id, min_visits?, min_spent? }
+ */
+exports.getLoyalCustomers = async (req, res) => {
+  try {
+    const userId = req.user?.user_id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const { salon_id, min_visits, min_spent } = req.body;
+    if (!salon_id) {
+      return res.status(400).json({ error: "Salon ID is required" });
+    }
+
+    // Verify ownership
+    const { db } = require("../../config/database");
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to view customers for this salon" });
+    }
+
+    const customers = await notificationService.getLoyalCustomers(
+      salon_id,
+      min_visits || 2,
+      min_spent || 100
+    );
+
+    res.json({ customers });
+  } catch (err) {
+    console.error("Get loyal customers error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Send promotional offer to selected customers
+ * POST /api/notifications/send-promotion
+ * Body: { salon_id, user_ids[], message }
+ */
+exports.sendPromotionToCustomers = async (req, res) => {
+  try {
+    const userId = req.user?.user_id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const { salon_id, user_ids, message } = req.body;
+    
+    if (!salon_id || !user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
+      return res.status(400).json({ error: "Salon ID, user_ids array, and message are required" });
+    }
+
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: "Message cannot be empty" });
+    }
+
+    // Verify ownership
+    const { db } = require("../../config/database");
+    const [salons] = await db.query(
+      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to send promotions for this salon" });
+    }
+
+    // Send notifications
+    const notificationIds = await notificationService.sendPromotionalOfferNotification(
+      user_ids,
+      message
+    );
+
+    res.json({ 
+      message: `Promotional offer sent to ${user_ids.length} customer(s)`,
+      notification_count: notificationIds.length
+    });
+  } catch (err) {
+    console.error("Send promotion error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+

@@ -24,6 +24,52 @@ exports.sendPromotionalOffer = async (user_ids, message, scheduled_for) => {
   return results;
 };
 
+/**
+ * Send promotional offer as in-app notification to multiple users
+ * @param {number[]} user_ids - Array of user IDs to notify
+ * @param {string} message - The promotional message
+ * @returns {Promise<number[]>} Array of notification_ids
+ */
+exports.sendPromotionalOfferNotification = async (user_ids, message) => {
+  return await exports.createNotificationsForUsers(user_ids, 'promotion', message);
+};
+
+/**
+ * Get loyal customers for a salon (customers with multiple visits or high spending)
+ * @param {number} salon_id - The salon ID
+ * @param {number} minVisits - Minimum number of visits (default: 2)
+ * @param {number} minSpent - Minimum amount spent (default: 100)
+ * @returns {Promise<Array>} Array of customer objects with user_id, name, email, visits, total_spent
+ */
+exports.getLoyalCustomers = async (salon_id, minVisits = 2, minSpent = 100) => {
+  const [customers] = await db.query(
+    `SELECT 
+      u.user_id,
+      u.full_name as name,
+      u.email,
+      COUNT(a.appointment_id) as visits,
+      COALESCE(SUM(CASE WHEN a.status IN ('confirmed', 'completed') THEN a.price ELSE 0 END), 0) as total_spent,
+      MAX(a.scheduled_time) as last_visit
+    FROM salon_customers sc
+    JOIN users u ON u.user_id = sc.user_id
+    LEFT JOIN appointments a ON a.user_id = u.user_id AND a.salon_id = ?
+    WHERE sc.salon_id = ?
+    GROUP BY u.user_id, u.full_name, u.email
+    HAVING visits >= ? OR total_spent >= ?
+    ORDER BY total_spent DESC, visits DESC`,
+    [salon_id, salon_id, minVisits, minSpent]
+  );
+  
+  return customers.map(c => ({
+    user_id: c.user_id,
+    name: c.name,
+    email: c.email,
+    visits: Number(c.visits || 0),
+    total_spent: Number(c.total_spent || 0),
+    last_visit: c.last_visit
+  }));
+};
+
 exports.notifyClientDelay = async (user_id, message) => {
   const [result] = await db.query(
     `INSERT INTO notification_queue (user_id, message, delivery_method, scheduled_for, sent)
@@ -161,5 +207,51 @@ exports.cancelScheduledReminders = async (user_id, messagePattern) => {
     [user_id, `%${messagePattern}%`]
   );
   return result.affectedRows;
+};
+
+/**
+ * Send promotional offer as in-app notification to multiple users
+ * @param {number[]} user_ids - Array of user IDs to notify
+ * @param {string} message - The promotional message
+ * @returns {Promise<number[]>} Array of notification_ids
+ */
+exports.sendPromotionalOfferNotification = async (user_ids, message) => {
+  return await exports.createNotificationsForUsers(user_ids, 'promotion', message);
+};
+
+/**
+ * Get loyal customers for a salon (customers with multiple visits or high spending)
+ * @param {number} salon_id - The salon ID
+ * @param {number} minVisits - Minimum number of visits (default: 2)
+ * @param {number} minSpent - Minimum amount spent (default: 100)
+ * @returns {Promise<Array>} Array of customer objects with user_id, name, email, visits, total_spent
+ */
+exports.getLoyalCustomers = async (salon_id, minVisits = 2, minSpent = 100) => {
+  const [customers] = await db.query(
+    `SELECT 
+      u.user_id,
+      u.full_name as name,
+      u.email,
+      COUNT(a.appointment_id) as visits,
+      COALESCE(SUM(CASE WHEN a.status IN ('confirmed', 'completed') THEN a.price ELSE 0 END), 0) as total_spent,
+      MAX(a.scheduled_time) as last_visit
+    FROM salon_customers sc
+    JOIN users u ON u.user_id = sc.user_id
+    LEFT JOIN appointments a ON a.user_id = u.user_id AND a.salon_id = ?
+    WHERE sc.salon_id = ?
+    GROUP BY u.user_id, u.full_name, u.email
+    HAVING visits >= ? OR total_spent >= ?
+    ORDER BY total_spent DESC, visits DESC`,
+    [salon_id, salon_id, minVisits, minSpent]
+  );
+  
+  return customers.map(c => ({
+    user_id: c.user_id,
+    name: c.name,
+    email: c.email,
+    visits: Number(c.visits || 0),
+    total_spent: Number(c.total_spent || 0),
+    last_visit: c.last_visit
+  }));
 };
 
