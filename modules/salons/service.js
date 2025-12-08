@@ -248,7 +248,9 @@ async function getSalonBookingSettings(salonId) {
   return {
     cancellationPolicy: rows[0].cancellation_policy || "",
     advanceBookingDays: rows[0].auto_complete_after || 30,
-    depositPercentage: hasColumn('deposit_percentage') ? (parseFloat(rows[0].deposit_percentage) || 0) : 0,
+    depositPercentage: hasColumn('deposit_percentage') && rows[0].deposit_percentage !== undefined && rows[0].deposit_percentage !== null 
+      ? (parseFloat(rows[0].deposit_percentage) || 0) 
+      : 0,
   };
 }
 
@@ -282,6 +284,11 @@ async function updateSalonBookingSettings(salonId, bookingSettings) {
     .filter(field => field !== 'salon_id') // Don't update salon_id
     .map(field => `${field} = VALUES(${field})`)
     .join(', ');
+
+  // Ensure we have fields to update
+  if (updateClause.length === 0) {
+    throw new Error('No fields to update in booking settings');
+  }
 
   // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
   await db.query(
