@@ -377,15 +377,19 @@ exports.getPaymentBySessionId = async (req, res) => {
         }
       })();
 
-    // Race between payment confirmation and timeout
-    try {
-      await Promise.race([confirmationPromise, timeoutPromise]);
-    } catch (err) {
-      if (err.message === "Payment verification timeout") {
-        console.log("[Payment] Verification timed out, returning payment data anyway");
-      } else {
-        console.error("[Payment] Error in confirmation:", err);
+      // Race between payment confirmation and timeout
+      try {
+        await Promise.race([confirmationPromise, timeoutPromise]);
+      } catch (err) {
+        if (err.message === "Payment verification timeout") {
+          console.log("[Payment] Verification timed out, returning payment data anyway");
+        } else {
+          console.error("[Payment] Error in confirmation:", err);
+        }
       }
+    } catch (err) {
+      console.error("[Payment] Error in payment verification:", err);
+      // Continue with original payment data even if verification fails
     }
 
     res.json({ payment });
