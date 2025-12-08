@@ -315,14 +315,14 @@ async function getSalonLoyaltySettings(salonId) {
     return {
       loyaltyEnabled: false,
       pointsPerVisit: 10,
-      redeemRate: 100,
+      redeemRate: 0.01,
     };
   }
 
   return {
     loyaltyEnabled: rows[0].loyalty_enabled === 1 || rows[0].loyalty_enabled === true || false,
     pointsPerVisit: rows[0].points_per_visit || 10,
-    redeemRate: parseFloat(rows[0].redeem_rate) || 100,
+    redeemRate: parseFloat(rows[0].redeem_rate) || 0.01,
   };
 }
 
@@ -334,7 +334,7 @@ async function updateSalonLoyaltySettings(salonId, loyaltySettings) {
 
   const enabled = loyaltyEnabled === true || loyaltyEnabled === 1 ? 1 : 0;
   const points = pointsPerVisit || 10;
-  const rate = redeemRate || 100;
+  const rate = redeemRate !== undefined && redeemRate !== null ? parseFloat(redeemRate) : 0.01;
 
   // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
   await db.query(

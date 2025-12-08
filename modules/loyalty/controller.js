@@ -101,14 +101,17 @@ exports.getMyPoints = async (req, res) => {
     const points = await loyaltyService.getLoyaltyPoints(user_id, salon_id);
     const config = await loyaltyService.getLoyaltyConfig(salon_id);
 
+    // Ensure redeem_rate is a number (it might come from DB as string)
+    const redeemRate = parseFloat(config.redeem_rate) || 0.01;
+
     res.json({
       salon_id,
       points,
       min_points_redeem: config.min_points_redeem,
-      redeem_rate: config.redeem_rate,
+      redeem_rate: redeemRate,
       can_redeem: points >= config.min_points_redeem,
       estimated_discount: points >= config.min_points_redeem
-        ? (points * config.redeem_rate).toFixed(2)
+        ? (points * redeemRate).toFixed(2)
         : '0.00'
     });
   } catch (err) {
