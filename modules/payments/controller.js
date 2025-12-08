@@ -200,8 +200,8 @@ exports.getPaymentBySessionId = async (req, res) => {
       );
 
       const confirmationPromise = (async () => {
-      try {
-      const stripe = require("../../config/stripe");
+        try {
+          const stripe = require("../../config/stripe");
       const session = await stripe.checkout.sessions.retrieve(session_id);
       console.log(`[Payment] Checking session ${session_id}: payment_status=${session.payment_status}`);
       console.log(`[Payment] Session metadata:`, JSON.stringify(session.metadata, null, 2));
@@ -365,17 +365,17 @@ exports.getPaymentBySessionId = async (req, res) => {
           // No cart_id or appointment_id - unknown checkout type
           console.log(`[Payment] Unknown checkout type: payment_status=${session.payment_status}, metadata:`, JSON.stringify(session.metadata, null, 2));
         }
-      } else {
-        console.log(`[Payment] Payment not yet completed: payment_status=${session.payment_status}`);
-      }
-      return payment;
-      } catch (err) {
-        console.error("[Payment] Error checking/confirming payment:", err);
-        console.error("[Payment] Error stack:", err.stack);
-        // Continue with original payment data even if confirmation check fails
+        } else {
+          console.log(`[Payment] Payment not yet completed: payment_status=${session.payment_status}`);
+        }
         return payment;
-      }
-    })();
+        } catch (err) {
+          console.error("[Payment] Error checking/confirming payment:", err);
+          console.error("[Payment] Error stack:", err.stack);
+          // Continue with original payment data even if confirmation check fails
+          return payment;
+        }
+      })();
 
     // Race between payment confirmation and timeout
     try {
