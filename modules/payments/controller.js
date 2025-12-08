@@ -193,7 +193,13 @@ exports.getPaymentBySessionId = async (req, res) => {
 
     // Check if payment needs confirmation (webhook might not have fired)
     // This is a fallback for development when webhooks might not be configured
+    // Set timeout to prevent hanging
     try {
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Payment verification timeout")), 10000)
+      );
+
+      const confirmationPromise = (async () => {
       const stripe = require("../../config/stripe");
       const session = await stripe.checkout.sessions.retrieve(session_id);
       console.log(`[Payment] Checking session ${session_id}: payment_status=${session.payment_status}`);
@@ -361,10 +367,24 @@ exports.getPaymentBySessionId = async (req, res) => {
       } else {
         console.log(`[Payment] Payment not yet completed: payment_status=${session.payment_status}`);
       }
+      return payment;
+      } catch (err) {
+        console.error("[Payment] Error checking/confirming payment:", err);
+        console.error("[Payment] Error stack:", err.stack);
+        // Continue with original payment data even if confirmation check fails
+        return payment;
+      }
+    })();
+
+    // Race between payment confirmation and timeout
+    try {
+      await Promise.race([confirmationPromise, timeoutPromise]);
     } catch (err) {
-      console.error("[Payment] Error checking/confirming payment:", err);
-      console.error("[Payment] Error stack:", err.stack);
-      // Continue with original payment data even if confirmation check fails
+      if (err.message === "Payment verification timeout") {
+        console.log("[Payment] Verification timed out, returning payment data anyway");
+      } else {
+        console.error("[Payment] Error in confirmation:", err);
+      }
     }
 
     res.json({ payment });
