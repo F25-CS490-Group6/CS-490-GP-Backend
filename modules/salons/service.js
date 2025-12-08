@@ -222,7 +222,7 @@ async function updateSalonAmenities(salonId, amenities) {
  */
 async function getSalonBookingSettings(salonId) {
   const [rows] = await db.query(
-    `SELECT cancellation_policy, auto_complete_after, require_deposit, deposit_amount FROM salon_settings WHERE salon_id = ?`,
+    `SELECT cancellation_policy, auto_complete_after, deposit_percentage FROM salon_settings WHERE salon_id = ?`,
     [salonId]
   );
 
@@ -230,16 +230,14 @@ async function getSalonBookingSettings(salonId) {
     return {
       cancellationPolicy: "",
       advanceBookingDays: 30,
-      requireDeposit: false,
-      depositAmount: 0,
+      depositPercentage: 0,
     };
   }
 
   return {
     cancellationPolicy: rows[0].cancellation_policy || "",
     advanceBookingDays: rows[0].auto_complete_after || 30,
-    requireDeposit: rows[0].require_deposit === 1 || rows[0].require_deposit === true || false,
-    depositAmount: parseFloat(rows[0].deposit_amount) || 0,
+    depositPercentage: parseFloat(rows[0].deposit_percentage) || 0,
   };
 }
 
@@ -247,23 +245,21 @@ async function getSalonBookingSettings(salonId) {
  * Update salon booking settings
  */
 async function updateSalonBookingSettings(salonId, bookingSettings) {
-  const { cancellationPolicy, advanceBookingDays, requireDeposit, depositAmount } = bookingSettings;
+  const { cancellationPolicy, advanceBookingDays, depositPercentage } = bookingSettings;
 
   const policy = cancellationPolicy || null;
   const days = advanceBookingDays || 30;
-  const deposit = requireDeposit === true || requireDeposit === 1 ? 1 : 0;
-  const amount = depositAmount || 0;
+  const deposit = depositPercentage !== undefined ? Math.max(0, Math.min(100, parseFloat(depositPercentage) || 0)) : 0;
 
   // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
   await db.query(
-    `INSERT INTO salon_settings (salon_id, cancellation_policy, auto_complete_after, require_deposit, deposit_amount) 
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO salon_settings (salon_id, cancellation_policy, auto_complete_after, deposit_percentage) 
+     VALUES (?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE 
        cancellation_policy = VALUES(cancellation_policy),
        auto_complete_after = VALUES(auto_complete_after),
-       require_deposit = VALUES(require_deposit),
-       deposit_amount = VALUES(deposit_amount)`,
-    [salonId, policy, days, deposit, amount]
+       deposit_percentage = VALUES(deposit_percentage)`,
+    [salonId, policy, days, deposit]
   );
 
   return { success: true };
@@ -319,50 +315,31 @@ async function updateSalonLoyaltySettings(salonId, loyaltySettings) {
 
 /**
  * Get salon appointment slot settings
+ * Note: These columns don't exist in salon_settings table, so we return defaults
+ * If you need to store these settings, add the columns to salon_settings table
  */
 async function getSalonSlotSettings(salonId) {
-  const [rows] = await db.query(
-    `SELECT slot_duration, buffer_time, min_advance_booking_hours FROM salon_settings WHERE salon_id = ?`,
-    [salonId]
-  );
-
-  if (!rows || rows.length === 0) {
-    return {
-      slotDuration: 30,
-      bufferTime: 0,
-      minAdvanceBookingHours: 2,
-    };
-  }
-
+  // The salon_settings table doesn't have slot_duration, buffer_time, or min_advance_booking_hours columns
+  // Return default values for now
+  // TODO: If these settings are needed, add columns to salon_settings table or store in a different table
   return {
-    slotDuration: rows[0].slot_duration || 30,
-    bufferTime: rows[0].buffer_time || 0,
-    minAdvanceBookingHours: rows[0].min_advance_booking_hours || 2,
+    slotDuration: 30, // Default 30 minutes
+    bufferTime: 0, // Default 0 minutes buffer
+    minAdvanceBookingHours: 2, // Default 2 hours advance booking
   };
 }
 
 /**
  * Update salon appointment slot settings
+ * Note: These columns don't exist in salon_settings table, so this is a no-op for now
+ * If you need to store these settings, add the columns to salon_settings table
  */
 async function updateSalonSlotSettings(salonId, slotSettings) {
-  const { slotDuration, bufferTime, minAdvanceBookingHours } = slotSettings;
-
-  const duration = slotDuration || 30;
-  const buffer = bufferTime || 0;
-  const minHours = minAdvanceBookingHours || 2;
-
-  // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
-  await db.query(
-    `INSERT INTO salon_settings (salon_id, slot_duration, buffer_time, min_advance_booking_hours) 
-     VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE 
-       slot_duration = VALUES(slot_duration),
-       buffer_time = VALUES(buffer_time),
-       min_advance_booking_hours = VALUES(min_advance_booking_hours)`,
-    [salonId, duration, buffer, minHours]
-  );
-
-  return { success: true };
+  // The salon_settings table doesn't have slot_duration, buffer_time, or min_advance_booking_hours columns
+  // This function is a no-op for now
+  // TODO: If these settings are needed, add columns to salon_settings table or store in a different table
+  console.warn(`[updateSalonSlotSettings] Slot settings update requested for salon ${salonId}, but columns don't exist in salon_settings table. Settings:`, slotSettings);
+  return { success: true, message: "Slot settings columns not available in database" };
 }
 
 /**

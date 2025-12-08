@@ -175,7 +175,7 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
   
   console.log(`[getAvailableSlots] Found ${avails.length} availability records for staff ${staff_id} on ${dayName}`);
   
-  // If no staff availability, use business hours
+  // If no staff availability, use business hours or default hours
   let startTime, endTime;
   if (avails && avails.length > 0) {
     const avail = avails[0];
@@ -188,19 +188,16 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
       : avail.end_time;
     console.log(`[getAvailableSlots] Using staff availability: ${startTime} - ${endTime}`);
   } else if (dayHours && dayHours.open && dayHours.close && !dayHours.closed) {
+    // Use salon business hours if available and not closed
     startTime = dayHours.open;
     endTime = dayHours.close;
     console.log(`[getAvailableSlots] Using business hours: ${startTime} - ${endTime}`);
   } else {
-    // If salon is closed and no staff availability, return empty
-    if (dayHours && dayHours.closed) {
-      console.log(`[getAvailableSlots] Salon closed and no staff availability - returning empty slots`);
-      return [];
-    }
-    // Default hours if nothing is set
+    // If staff hasn't set availability, always use default hours (9 AM - 5 PM)
+    // This ensures customers can book even when staff availability isn't configured
     startTime = "09:00";
     endTime = "17:00";
-    console.log(`[getAvailableSlots] Using default hours: ${startTime} - ${endTime}`);
+    console.log(`[getAvailableSlots] Staff availability not set - using default hours: ${startTime} - ${endTime}`);
   }
   
   // Get service duration if service_id is provided
@@ -271,6 +268,7 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
   
   // Generate available slots
   const availableSlots = [];
+  const now = new Date();
   let slot = new Date(start);
   
   while (slot < end) {
@@ -279,6 +277,13 @@ exports.getAvailableSlots = async (salon_id, staff_id, date, service_id = null) 
     // Check if slot extends beyond business hours
     if (slotEnd > end) {
       break;
+    }
+    
+    // Skip past time slots (if the slot end time is in the past, skip it)
+    if (slotEnd <= now) {
+      // Move to next slot (accounting for buffer time)
+      slot = new Date(slotEnd.getTime() + bufferTime * 60000);
+      continue;
     }
     
     // Check if slot is blocked by time off
@@ -470,4 +475,62 @@ exports.blockTimeSlot = async (staff_id, start_datetime, end_datetime, reason) =
     [staff_id, start_datetime, end_datetime, reason || "Blocked time slot"]
   );
   return result.insertId;
+};
+
+exports.getBlockedTimeSlots = async (staff_id) => {
+  const [timeoffs] = await db.query(
+    `SELECT 
+      timeoff_id,
+      staff_id,
+      start_datetime,
+      end_datetime,
+      reason,
+      status,
+      created_at
+     FROM staff_time_off
+     WHERE staff_id = ? AND status = 'approved' AND end_datetime > NOW()
+     ORDER BY start_datetime DESC`,
+    [staff_id]
+  );
+  return timeoffs;
+};
+
+exports.updateBlockedTimeSlot = async (staff_id, timeoff_id, start_datetime, end_datetime, reason) => {
+  // Verify the timeoff belongs to this staff member
+  const [existing] = await db.query(
+    `SELECT timeoff_id FROM staff_time_off WHERE timeoff_id = ? AND staff_id = ?`,
+    [timeoff_id, staff_id]
+  );
+
+  if (!existing || existing.length === 0) {
+    throw new Error("Time slot not found or you don't have permission to edit it");
+  }
+
+  await db.query(
+    `UPDATE staff_time_off 
+     SET start_datetime = ?, end_datetime = ?, reason = ?
+     WHERE timeoff_id = ? AND staff_id = ?`,
+    [start_datetime, end_datetime, reason || null, timeoff_id, staff_id]
+  );
+  
+  return { success: true };
+};
+
+exports.deleteBlockedTimeSlot = async (staff_id, timeoff_id) => {
+  // Verify the timeoff belongs to this staff member
+  const [existing] = await db.query(
+    `SELECT timeoff_id FROM staff_time_off WHERE timeoff_id = ? AND staff_id = ?`,
+    [timeoff_id, staff_id]
+  );
+
+  if (!existing || existing.length === 0) {
+    throw new Error("Time slot not found or you don't have permission to delete it");
+  }
+
+  await db.query(
+    `DELETE FROM staff_time_off WHERE timeoff_id = ? AND staff_id = ?`,
+    [timeoff_id, staff_id]
+  );
+  
+  return { success: true };
 };

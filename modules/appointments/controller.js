@@ -133,31 +133,7 @@ exports.createAppointment = async (req, res) => {
       });
     }
 
-    // Validate minimum advance booking hours (from slot settings)
-    const scheduledDateTime = new Date(finalScheduledTime);
-    const now = new Date();
-    const hoursDifference = (scheduledDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
-    if (hoursDifference < slotSettings.minAdvanceBookingHours) {
-      return res.status(400).json({
-        error: `Appointments must be booked at least ${slotSettings.minAdvanceBookingHours} hours in advance.`,
-      });
-    }
-
-    // Check if deposit is required (only for customer bookings, not owner/staff)
-    if (bookingSettings.requireDeposit && bookingSettings.depositAmount > 0) {
-      if (role !== "owner" && role !== "staff" && role !== "admin") {
-        // For customers, check if deposit payment is included in the request
-        const depositPaid = req.body.deposit_paid || req.body.depositPaid || false;
-        if (!depositPaid) {
-          return res.status(400).json({
-            error: `A deposit of $${bookingSettings.depositAmount.toFixed(2)} is required to book this appointment.`,
-            requiresDeposit: true,
-            depositAmount: bookingSettings.depositAmount,
-          });
-        }
-      }
-    }
+    // Deposit requirement removed - no longer checking for deposits
 
     // Check subscription limits for appointment creation
     // Only check if user is owner/admin creating appointment for their salon
@@ -288,12 +264,8 @@ exports.createAppointment = async (req, res) => {
     const serviceInput =
       Array.isArray(services) && services.length ? services : finalServiceId;
 
-    // If owner or staff creates appointment, it should be automatically confirmed
-    // Customers booking appointments need approval (pending)
-    const finalStatus =
-      role === "owner" || role === "staff" || role === "admin"
-        ? "confirmed"
-        : "pending";
+    // All appointments are automatically confirmed when booked
+    const finalStatus = "confirmed";
 
     const appointmentId = await appointmentService.createAppointment(
       userId,
@@ -335,10 +307,7 @@ exports.createAppointment = async (req, res) => {
       const formattedDate = formatAppointmentDate(finalScheduledTime);
       const salonName = getSalonName(salonInfo);
 
-      const customerMessage =
-        finalStatus === "confirmed"
-          ? `Appointment confirmed for ${salonName} on ${formattedDate}.`
-          : `Appointment request sent for ${salonName} on ${formattedDate}. Waiting for approval.`;
+      const customerMessage = `Appointment confirmed for ${salonName} on ${formattedDate}.`;
 
       await notificationService.createNotification(
         userId,
@@ -350,15 +319,15 @@ exports.createAppointment = async (req, res) => {
       console.error("Error creating booking notification:", notificationError);
     }
 
-    // Send notification to salon owner (only if customer created the appointment)
-    // Don't notify owner if they created it themselves or if it's already confirmed by owner/staff
+    // Send notification to salon owner about new appointment
+    // Don't notify owner if they created it themselves
     try {
       const ownerId = salonInfo?.owner_id;
       // Check if the authenticated user is the owner (owner creating appointment)
       const isOwnerCreating = ownerId && ownerId === tokenUserId;
 
-      if (ownerId && finalStatus === "pending" && !isOwnerCreating) {
-        // Only notify owner if appointment needs approval (pending status) and owner didn't create it
+      if (ownerId && !isOwnerCreating) {
+        // Notify owner about new appointment (owner didn't create it)
         const formattedDate = formatAppointmentDate(finalScheduledTime);
         const customerName = getCustomerName(
           firstName,
@@ -380,10 +349,6 @@ exports.createAppointment = async (req, res) => {
           ownerMessage
         );
         console.log("Salon owner notification sent successfully");
-      } else if (finalStatus === "confirmed") {
-        console.log(
-          "Appointment created by owner/staff - no owner notification needed"
-        );
       } else if (isOwnerCreating) {
         console.log(
           "Owner creating appointment - no owner notification needed"
@@ -445,7 +410,7 @@ exports.createAppointment = async (req, res) => {
       }
     }
 
-    // Schedule reminders only for confirmed appointments (pending might get cancelled)
+    // Schedule reminders for confirmed appointments
     if (finalStatus === "confirmed") {
       try {
         const notificationSettings =
@@ -631,23 +596,13 @@ exports.updateAppointment = async (req, res) => {
         const customerName = customerInfo?.full_name || "Customer";
 
         if (updates.status === "confirmed") {
-          // Appointment approved - notify customer
-          const approvedMessage = `Appointment approved! Your appointment at ${salonName} on ${formattedDate} has been confirmed.`;
+          // Appointment confirmed - notify customer
+          const confirmedMessage = `Your appointment at ${salonName} on ${formattedDate} has been confirmed.`;
           await notificationService.createNotification(
             appointment.user_id,
             "appointment",
-            approvedMessage
+            confirmedMessage
           );
-
-          // Notify salon owner
-          if (salonInfo?.owner_id) {
-            const ownerMessage = `You approved ${customerName}'s appointment on ${formattedDate}`;
-            await notificationService.createNotification(
-              salonInfo.owner_id,
-              "appointment",
-              ownerMessage
-            );
-          }
         } else if (updates.status === "completed") {
           // Award loyalty points if loyalty program is enabled
           try {

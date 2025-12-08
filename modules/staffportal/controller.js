@@ -57,9 +57,37 @@ exports.login = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const staffId = req.user?.staff_id;
+    console.log("[getProfile] Request user:", {
+      user_id: req.user?.user_id,
+      staff_id: req.user?.staff_id,
+      role: req.user?.role,
+      salon_id: req.user?.salon_id,
+    });
+    
+    let staffId = req.user?.staff_id;
+    
+    // If staff_id is missing but we have user_id and role is staff, try to find staff_id from database
+    if (!staffId && req.user?.user_id && req.user?.role === "staff") {
+      console.log("[getProfile] staff_id missing, attempting to find from database for user_id:", req.user.user_id);
+      const { db } = require("../../config/database");
+      const [staffRows] = await db.query(
+        "SELECT staff_id FROM staff WHERE user_id = ? AND is_active = 1 LIMIT 1",
+        [req.user.user_id]
+      );
+      if (staffRows && staffRows.length > 0) {
+        staffId = staffRows[0].staff_id;
+        console.log("[getProfile] Found staff_id from database:", staffId);
+        // Update req.user for subsequent middleware
+        req.user.staff_id = staffId;
+      }
+    }
+    
     if (!staffId) {
-      return res.status(401).json({ error: "Staff context missing" });
+      console.error("[getProfile] Staff context missing. req.user:", req.user);
+      return res.status(401).json({ 
+        error: "Staff context missing. Please ensure you logged in through the staff portal login page.",
+        debug: process.env.NODE_ENV === 'development' ? { user: req.user } : undefined
+      });
     }
 
     const profile = await staffPortalService.getStaffProfile(staffId);

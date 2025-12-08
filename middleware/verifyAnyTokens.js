@@ -31,6 +31,17 @@ exports.verifyAnyToken = async (req, res, next) => {
     // ======================================================
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      // Debug: Log decoded token for staff portal
+      if (decoded.scope === "staff_portal" || decoded.staff_id) {
+        console.log("[verifyAnyToken] Decoded staff portal token:", {
+          user_id: decoded.user_id,
+          staff_id: decoded.staff_id,
+          salon_id: decoded.salon_id,
+          role: decoded.role,
+          scope: decoded.scope,
+        });
+      }
 
       const [rows] = await db.query(
         `
@@ -44,19 +55,44 @@ exports.verifyAnyToken = async (req, res, next) => {
       );
 
       const userRecord = rows[0] || {};
+      
+      // For staff portal tokens, staff_id MUST come from the token (it's set during login)
+      // Don't fall back to database lookup for staff_id when it's a staff portal token
+      let staffId = null;
+      if (decoded.scope === "staff_portal" || decoded.staff_id) {
+        staffId = decoded.staff_id; // Always use token's staff_id for staff portal
+        if (!staffId) {
+          console.error("[verifyAnyToken] Staff portal token missing staff_id:", decoded);
+        }
+      } else {
+        // For regular tokens, try token first, then database
+        staffId = decoded.staff_id || userRecord.staff_id || null;
+      }
+      
       // For owners: use u.salon_id, for staff: use staff_salon_id, fallback to u.salon_id
       const salonId = userRecord.staff_salon_id || userRecord.salon_id || decoded.salon_id || null;
       
-      // Get staff_id from token (if present) or from database
-      const staffId = decoded.staff_id || userRecord.staff_id || null;
+      // For staff portal tokens, prioritize the role from the token (which should be "staff")
+      // This ensures staff portal tokens work even if user_role in DB is different
+      let finalRole = decoded.role || userRecord.user_role;
+      if (decoded.scope === "staff_portal" || decoded.staff_id) {
+        finalRole = "staff";
+      }
       
       req.user = {
         user_id: decoded.user_id,
         email: decoded.email || userRecord.email,
-        role: decoded.role || userRecord.user_role,
+        role: finalRole,
         salon_id: salonId,
         staff_id: staffId,
       };
+      
+      // Debug logging for staff portal
+      if (decoded.scope === "staff_portal" || decoded.staff_id) {
+        console.log("[verifyAnyToken] Staff portal token processed:", {
+          req_user: req.user,
+        });
+      }
 
       return next();
     } catch (jwtErr) {

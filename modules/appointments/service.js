@@ -7,7 +7,7 @@ const ALLOWED_STATUSES = new Set([
   "cancelled",
 ]);
 
-function normalizeStatus(status, fallback = "pending") {
+function normalizeStatus(status, fallback = "confirmed") {
   if (!status) return fallback;
   const normalized = String(status).toLowerCase();
   if (normalized === "canceled") return "cancelled";
@@ -69,7 +69,7 @@ async function createAppointment(
   notes,
   status
 ) {
-  const normalizedStatus = normalizeStatus(status, "pending");
+  const normalizedStatus = normalizeStatus(status, "confirmed");
   const sql = `
     INSERT INTO appointments 
       (user_id, salon_id, staff_id, scheduled_time, price, notes, status)
@@ -159,12 +159,15 @@ async function getAppointmentById(appointmentId) {
       s.name AS salon_name,
       cu.full_name AS customer_name,
       stf.staff_id,
-      su.full_name AS staff_name
+      su.full_name AS staff_name,
+      p.payment_id,
+      p.payment_status
     FROM appointments a
     LEFT JOIN salons s ON a.salon_id = s.salon_id
     LEFT JOIN users cu ON cu.user_id = a.user_id
     LEFT JOIN staff stf ON a.staff_id = stf.staff_id
     LEFT JOIN users su ON stf.user_id = su.user_id
+    LEFT JOIN payments p ON p.appointment_id = a.appointment_id AND p.payment_status = 'completed'
     WHERE a.appointment_id = ?
   `;
   const [rows] = await db.query(sql, [appointmentId]);

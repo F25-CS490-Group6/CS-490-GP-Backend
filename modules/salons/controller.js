@@ -632,11 +632,10 @@ exports.getSalonByIdPublic = async (req, res) => {
         amenities, 
         business_hours,
         cancellation_policy,
-        require_deposit,
-        deposit_amount,
         refund_policy,
         late_arrival_policy,
-        no_show_policy
+        no_show_policy,
+        deposit_percentage
       FROM salon_settings WHERE salon_id = ?`,
       [salon_id]
     );
@@ -645,8 +644,6 @@ exports.getSalonByIdPublic = async (req, res) => {
     let businessHours = null;
     let bookingSettings = {
       cancellationPolicy: null,
-      requireDeposit: false,
-      depositAmount: 0,
       refundPolicy: null,
       lateArrivalPolicy: null,
       noShowPolicy: null,
@@ -682,11 +679,10 @@ exports.getSalonByIdPublic = async (req, res) => {
       // Get booking settings
       bookingSettings = {
         cancellationPolicy: setting.cancellation_policy || null,
-        requireDeposit: setting.require_deposit === 1 || setting.require_deposit === true,
-        depositAmount: parseFloat(setting.deposit_amount) || 0,
         refundPolicy: setting.refund_policy || null,
         lateArrivalPolicy: setting.late_arrival_policy || null,
         noShowPolicy: setting.no_show_policy || null,
+        depositPercentage: setting.deposit_percentage ? parseFloat(setting.deposit_percentage) : 0,
       };
     }
 
@@ -721,8 +717,6 @@ exports.getSalonBookingPolicyPublic = async (req, res) => {
     const [settings] = await db.query(
       `SELECT 
         cancellation_policy,
-        require_deposit,
-        deposit_amount,
         refund_policy,
         late_arrival_policy,
         no_show_policy
@@ -733,8 +727,6 @@ exports.getSalonBookingPolicyPublic = async (req, res) => {
     if (!settings || settings.length === 0) {
       return res.json({ 
         cancellationPolicy: null,
-        requireDeposit: false,
-        depositAmount: 0,
         refundPolicy: null,
         lateArrivalPolicy: null,
         noShowPolicy: null,
@@ -744,8 +736,6 @@ exports.getSalonBookingPolicyPublic = async (req, res) => {
     const setting = settings[0];
     res.json({ 
       cancellationPolicy: setting.cancellation_policy || null,
-      requireDeposit: setting.require_deposit === 1 || setting.require_deposit === true,
-      depositAmount: parseFloat(setting.deposit_amount) || 0,
       refundPolicy: setting.refund_policy || null,
       lateArrivalPolicy: setting.late_arrival_policy || null,
       noShowPolicy: setting.no_show_policy || null,

@@ -15,9 +15,13 @@ exports.getAvailableSlots = async (req, res) => {
   try {
     const { salon_id, staff_id, date, service_id } = req.query;
     
+    console.log("[getAvailableSlots Controller] Request params:", { salon_id, staff_id, date, service_id });
+    
     if (!salon_id || !staff_id || !date) {
+      console.error("[getAvailableSlots Controller] Missing required parameters");
       return res.status(400).json({ 
-        error: "salon_id, staff_id, and date are required" 
+        error: "salon_id, staff_id, and date are required",
+        received: { salon_id, staff_id, date }
       });
     }
     
@@ -28,10 +32,15 @@ exports.getAvailableSlots = async (req, res) => {
       service_id ? parseInt(service_id) : null
     );
     
+    console.log(`[getAvailableSlots Controller] Returning ${slots.length} slots`);
     res.json({ slots });
   } catch (err) {
     console.error("Get available slots error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Error stack:", err.stack);
+    res.status(500).json({ 
+      error: err.message || "Failed to get available slots",
+      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
 
@@ -111,8 +120,13 @@ exports.cancelAppointment = async (req, res) => {
 
 exports.getBarberSchedule = async (req, res) => {
   try {
-    const user_id = req.user.user_id || req.user.id;
-    const staff_id = await bookingService.getStaffIdByUserId(user_id);
+    // Use staff_id from token if available (staff portal), otherwise look it up
+    let staff_id = req.user?.staff_id;
+    
+    if (!staff_id) {
+      const user_id = req.user.user_id || req.user.id;
+      staff_id = await bookingService.getStaffIdByUserId(user_id);
+    }
 
     if (!staff_id) {
       return res.status(403).json({ error: "Not a staff member" });
@@ -128,18 +142,99 @@ exports.getBarberSchedule = async (req, res) => {
 
 exports.blockTimeSlot = async (req, res) => {
   try {
-    const user_id = req.user.user_id || req.user.id;
-    const { start_datetime, end_datetime, reason } = req.body;
+    // Use staff_id from token if available (staff portal), otherwise look it up
+    let staff_id = req.user?.staff_id;
+    
+    if (!staff_id) {
+      const user_id = req.user.user_id || req.user.id;
+      staff_id = await bookingService.getStaffIdByUserId(user_id);
+    }
 
-    const staff_id = await bookingService.getStaffIdByUserId(user_id);
     if (!staff_id) {
       return res.status(403).json({ error: "Not a staff member" });
     }
+
+    const { start_datetime, end_datetime, reason } = req.body;
 
     await bookingService.blockTimeSlot(staff_id, start_datetime, end_datetime, reason);
     res.json({ message: "Time slot blocked" });
   } catch (err) {
     console.error("Block slot error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getBlockedTimeSlots = async (req, res) => {
+  try {
+    // Use staff_id from token if available (staff portal), otherwise look it up
+    let staff_id = req.user?.staff_id;
+    
+    if (!staff_id) {
+      const user_id = req.user.user_id || req.user.id;
+      staff_id = await bookingService.getStaffIdByUserId(user_id);
+    }
+
+    if (!staff_id) {
+      return res.status(403).json({ error: "Not a staff member" });
+    }
+
+    const blockedSlots = await bookingService.getBlockedTimeSlots(staff_id);
+    res.json({ blockedSlots });
+  } catch (err) {
+    console.error("Get blocked slots error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateBlockedTimeSlot = async (req, res) => {
+  try {
+    // Use staff_id from token if available (staff portal), otherwise look it up
+    let staff_id = req.user?.staff_id;
+    
+    if (!staff_id) {
+      const user_id = req.user.user_id || req.user.id;
+      staff_id = await bookingService.getStaffIdByUserId(user_id);
+    }
+
+    if (!staff_id) {
+      return res.status(403).json({ error: "Not a staff member" });
+    }
+
+    const { timeoff_id } = req.params;
+    const { start_datetime, end_datetime, reason } = req.body;
+
+    if (!start_datetime || !end_datetime) {
+      return res.status(400).json({ error: "Start and end datetime are required" });
+    }
+
+    await bookingService.updateBlockedTimeSlot(staff_id, timeoff_id, start_datetime, end_datetime, reason);
+    res.json({ message: "Time slot updated successfully" });
+  } catch (err) {
+    console.error("Update blocked slot error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deleteBlockedTimeSlot = async (req, res) => {
+  try {
+    // Use staff_id from token if available (staff portal), otherwise look it up
+    let staff_id = req.user?.staff_id;
+    
+    if (!staff_id) {
+      const user_id = req.user.user_id || req.user.id;
+      staff_id = await bookingService.getStaffIdByUserId(user_id);
+    }
+
+    if (!staff_id) {
+      return res.status(403).json({ error: "Not a staff member" });
+    }
+
+    const { timeoff_id } = req.params;
+
+    await bookingService.deleteBlockedTimeSlot(staff_id, timeoff_id);
+    res.json({ message: "Time slot deleted successfully" });
+  } catch (err) {
+    console.error("Delete blocked slot error:", err);
     res.status(500).json({ error: err.message });
   }
 };

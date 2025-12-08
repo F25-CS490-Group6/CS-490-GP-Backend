@@ -23,6 +23,8 @@ const paymentRoutes = require("./modules/payments/routes");
 const adminRoutes = require("./modules/admins/routes");
 const bookingRoutes = require("./modules/bookings/routes");
 const webhookController = require("./modules/payments/webhooks");
+const shopRoutes = require("./modules/shop/routes");
+const loyaltyRoutes = require("./modules/loyalty/routes");
 const subscriptionRoutes = require("./modules/subscriptions/routes");
 const { db, testConnection, closePool } = require("./config/database");
 
@@ -144,8 +146,8 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/bookings", bookingRoutes);
-const shopRoutes = require("./modules/shop/routes");
 app.use("/api/shop", shopRoutes);
+app.use("/api/loyalty", loyaltyRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 
 // Handle frontend calling /reviews instead of /api/reviews (missing /api prefix)
