@@ -6,7 +6,7 @@ const salonService = require("../salons/service");
 
 function getSalonName(salonInfo) {
   return salonInfo?.name || salonInfo?.salon_name || "the salon";
-}
+  }
 
 exports.getAvailableBarbersAndSlots = async (req, res) => {
   try {
