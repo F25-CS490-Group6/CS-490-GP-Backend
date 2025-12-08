@@ -200,6 +200,7 @@ exports.getPaymentBySessionId = async (req, res) => {
       );
 
       const confirmationPromise = (async () => {
+      try {
       const stripe = require("../../config/stripe");
       const session = await stripe.checkout.sessions.retrieve(session_id);
       console.log(`[Payment] Checking session ${session_id}: payment_status=${session.payment_status}`);
