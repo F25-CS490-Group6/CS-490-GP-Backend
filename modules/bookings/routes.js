@@ -9,6 +9,9 @@ const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
 // Public: Get available time slots for specific staff/date/service
 router.get("/slots", bookingController.getAvailableSlots);
 
+// Public: Get available time slots for specific staff/date/service
+router.get("/slots", bookingController.getAvailableSlots);
+
 // Customers: Get available barbers and calculated time slots
 router.get(
   "/available",

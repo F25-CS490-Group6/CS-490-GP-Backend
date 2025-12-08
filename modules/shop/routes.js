@@ -15,7 +15,10 @@ router.post("/add-appointment-to-cart", verifyAnyToken, shopController.addAppoin
 router.get("/cart", verifyAnyToken, shopController.getCart);
 router.get("/unified-cart", verifyAnyToken, shopController.getUnifiedCart);
 router.delete("/cart/:item_id", verifyAnyToken, shopController.removeFromCart);
+<<<<<<< HEAD
 router.delete("/cart-services", verifyAnyToken, shopController.deleteAllServiceItems);
+=======
+>>>>>>> ee7181a774414ab4b37f11d5e7ae2a21bb1d08d0
 
 // Checkout (deprecated - use unified checkout via payments endpoint)
 router.post("/checkout", verifyAnyToken, shopController.checkoutCart);

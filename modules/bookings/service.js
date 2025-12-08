@@ -367,7 +367,9 @@ exports.bookAppointment = async (user_id, salon_id, staff_id, service_id, schedu
   if (!user_id || user_id === null || user_id === undefined) {
     throw new Error("User ID is required");
   }
-  
+
+  // Note: service_id parameter is kept for backward compatibility but not inserted
+  // The appointments table doesn't have a service_id column
   const result = await db.query(
     `INSERT INTO appointments (user_id, salon_id, staff_id, scheduled_time, status)
      VALUES (?, ?, ?, ?, 'booked')`,
