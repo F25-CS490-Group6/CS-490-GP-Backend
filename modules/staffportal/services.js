@@ -28,6 +28,17 @@ const endOfDay = (date) => {
   return d;
 };
 
+// Format date as MySQL datetime string (YYYY-MM-DD HH:MM:SS)
+const formatMySQLDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
 const salonColumnCache = {};
 
 async function hasSalonColumn(columnName) {
@@ -282,6 +293,12 @@ function buildDateFilters(filters = {}) {
 
   const toDate = (value) => {
     if (!value) return null;
+    // Handle date strings in YYYY-MM-DD format
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      // Parse as local date to avoid timezone issues
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   };
@@ -291,6 +308,7 @@ function buildDateFilters(filters = {}) {
     if (parsed) {
       start = startOfDay(parsed);
       end = endOfDay(parsed);
+      console.log(`[buildDateFilters] Date filter: ${date} -> start: ${start.toISOString()}, end: ${end.toISOString()}`);
       return { start, end };
     }
   }
@@ -368,18 +386,23 @@ async function queryAppointments({
 
   if (start && end) {
     where.push("a.scheduled_time BETWEEN ? AND ?");
-    params.push(start, end);
+    params.push(formatMySQLDate(start), formatMySQLDate(end));
+    console.log(`[queryAppointments] Date range: ${formatMySQLDate(start)} to ${formatMySQLDate(end)}`);
   } else if (start) {
     where.push("a.scheduled_time >= ?");
-    params.push(start);
+    params.push(formatMySQLDate(start));
+    console.log(`[queryAppointments] Date from: ${formatMySQLDate(start)}`);
   } else if (end) {
     where.push("a.scheduled_time <= ?");
-    params.push(end);
+    params.push(formatMySQLDate(end));
+    console.log(`[queryAppointments] Date to: ${formatMySQLDate(end)}`);
   }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const selectParams = [...params, Number(limit), Number(offset)];
   const countParams = [...params];
+  
+  console.log(`[queryAppointments] Query params:`, { staffId, salonId, where: whereSql, params });
 
   const [rows] = await db.query(
     `
@@ -595,10 +618,10 @@ async function listTopCustomers({
 
   return rows.map((row) => ({
     user_id: row.user_id,
-    name: row.full_name,
+    full_name: row.full_name,
     email: row.email,
     phone: row.phone,
-    visits: Number(row.visits || 0),
+    total_visits: Number(row.visits || 0),
     last_visit: row.last_visit,
     lifetime_value: Number(row.lifetime_value || 0),
     favorite_service: row.favorite_service || null,
@@ -742,8 +765,9 @@ async function updateStaffAvailability(staffId, availability) {
 
   // Insert new availability
   if (availability && availability.length > 0) {
+    // Save all days, including unavailable ones, so we can track the state
     const validAvailability = availability.filter(
-      avail => avail.day_of_week && avail.start_time && avail.end_time && avail.is_available
+      avail => avail.day_of_week && avail.start_time && avail.end_time
     );
 
     if (validAvailability.length > 0) {

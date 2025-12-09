@@ -1,13 +1,14 @@
 //photos/service.js
 const { db } = require("../../config/database");
 
-exports.addServicePhoto = async (appointment_id, user_id, staff_id, service_id, photo_type, photo_url) => {
+exports.addServicePhoto = async (appointment_id, user_id, salon_id, staff_id, service_id, photo_type, photo_url) => {
   const [result] = await db.query(
-    `INSERT INTO service_photos (appointment_id, user_id, staff_id, service_id, photo_type, photo_url)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO service_photos (appointment_id, user_id, salon_id, staff_id, service_id, photo_type, photo_url)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
-      appointment_id,
+      appointment_id || null,
       user_id,
+      salon_id || null,
       staff_id || null,
       service_id || null,
       photo_type,
@@ -19,9 +20,32 @@ exports.addServicePhoto = async (appointment_id, user_id, staff_id, service_id, 
 
 exports.getServicePhotos = async (appointment_id) => {
   const [photos] = await db.query(
-    `SELECT * FROM service_photos WHERE appointment_id = ?`,
+    `SELECT * FROM service_photos WHERE appointment_id = ? ORDER BY created_at ASC`,
     [appointment_id]
   );
+  return photos;
+};
+
+// Get all photos for a specific user (customer)
+// Optionally filter by salon_id to show photos from a specific salon visit
+exports.getUserPhotos = async (user_id, salon_id = null) => {
+  let query = `
+    SELECT sp.*, a.scheduled_time, s.salon_name, s.salon_id as salon_id
+    FROM service_photos sp
+    LEFT JOIN appointments a ON sp.appointment_id = a.appointment_id
+    LEFT JOIN salons s ON sp.salon_id = s.salon_id
+    WHERE sp.user_id = ?
+  `;
+  const params = [user_id];
+  
+  if (salon_id) {
+    query += ` AND sp.salon_id = ?`;
+    params.push(salon_id);
+  }
+  
+  query += ` ORDER BY sp.created_at DESC`;
+  
+  const [photos] = await db.query(query, params);
   return photos;
 };
 

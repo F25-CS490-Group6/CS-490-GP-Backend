@@ -181,6 +181,20 @@ const startServer = async () => {
     app.listen(port, () => {
       console.log(` Server is running on port ${port}`);
       console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+      
+      // Start notification queue processor
+      const notificationService = require("./modules/notifications/service");
+      
+      // Process notification queue every minute
+      setInterval(async () => {
+        try {
+          await notificationService.processNotificationQueue();
+        } catch (err) {
+          console.error("Error in notification queue processor:", err);
+        }
+      }, 60000); // Run every 60 seconds (1 minute)
+      
+      console.log(" Notification queue processor started (runs every minute)");
     });
   } catch (error) {
     console.error(" Failed to start server:", error);

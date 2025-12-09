@@ -210,6 +210,62 @@ exports.cancelScheduledReminders = async (user_id, messagePattern) => {
 };
 
 /**
+ * Process the notification queue - send scheduled reminders that are due
+ * This should be called periodically (e.g., every minute) to process queued notifications
+ * @returns {Promise<number>} Number of notifications processed
+ */
+exports.processNotificationQueue = async () => {
+  try {
+    // Get all queued notifications that are due (scheduled_for <= NOW() and not sent)
+    const [queuedNotifications] = await db.query(
+      `SELECT queue_id, user_id, message, delivery_method, scheduled_for
+       FROM notification_queue
+       WHERE sent = FALSE
+       AND scheduled_for <= NOW()
+       ORDER BY scheduled_for ASC
+       LIMIT 100`,
+      []
+    );
+
+    if (queuedNotifications.length === 0) {
+      return 0;
+    }
+
+    let processedCount = 0;
+
+    for (const queued of queuedNotifications) {
+      try {
+        // For in-app reminders, create a notification in the notifications table
+        if (queued.delivery_method === 'in-app') {
+          await exports.createNotification(queued.user_id, 'reminder', queued.message);
+          processedCount++;
+        }
+        // For email/SMS reminders, you could add email/SMS sending logic here
+        // For now, we'll just mark them as sent
+        
+        // Mark as sent
+        await db.query(
+          `UPDATE notification_queue SET sent = TRUE WHERE queue_id = ?`,
+          [queued.queue_id]
+        );
+      } catch (err) {
+        console.error(`Error processing notification queue_id ${queued.queue_id}:`, err);
+        // Continue processing other notifications even if one fails
+      }
+    }
+
+    if (processedCount > 0) {
+      console.log(`[Notification Queue] Processed ${processedCount} reminder(s)`);
+    }
+
+    return processedCount;
+  } catch (err) {
+    console.error('Error processing notification queue:', err);
+    return 0;
+  }
+};
+
+/**
  * Send promotional offer as in-app notification to multiple users
  * @param {number[]} user_ids - Array of user IDs to notify
  * @param {string} message - The promotional message

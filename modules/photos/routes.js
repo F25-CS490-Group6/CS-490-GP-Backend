@@ -5,8 +5,10 @@ const photoController = require("./controller");
 const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
 const upload = require("../../middleware/upload");
 
-// Service photos
-router.post("/add", verifyAnyToken, photoController.addServicePhoto);
+// Service photos (before/after)
+// IMPORTANT: Specific routes must come before dynamic routes
+router.post("/add", verifyAnyToken, upload.single('photo'), photoController.addServicePhoto);
+router.get("/user/:user_id", verifyAnyToken, photoController.getUserPhotos);
 router.get("/:appointment_id", verifyAnyToken, photoController.getServicePhotos);
 
 // Salon gallery photos

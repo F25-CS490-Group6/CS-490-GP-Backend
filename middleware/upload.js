@@ -8,7 +8,9 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'salon-' + uniqueSuffix + path.extname(file.originalname));
+    // Use 'service-' prefix for service photos (before/after photos)
+    // Salon gallery photos use their own multer config in salon routes
+    cb(null, 'service-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
@@ -28,7 +30,7 @@ const fileFilter = (req, file, cb) => {
 // Configure upload
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit (matches frontend)
   fileFilter: fileFilter
 });
 

@@ -204,17 +204,26 @@ exports.addStaff = async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
     await staffService.savePinSetupToken(insertId, token);
 
-    // Step 4: Build URLs
+    // Step 4: Get salon name for email
+    const [salonNameRows] = await db.query(
+      "SELECT name FROM salons WHERE salon_id = ? LIMIT 1",
+      [finalSalonId]
+    );
+    const salonName = salonNameRows && salonNameRows.length > 0 
+      ? salonNameRows[0].name 
+      : finalSalonSlug;
+
+    // Step 5: Build URLs
     const frontendBase =
       process.env.FRONTEND_URL || "https://main.d9mc2v9b3gxgw.amplifyapp.com";
     const setupLink = `${frontendBase}/salon/${finalSalonSlug}/staff/sign-in-code?token=${token}`;
     const loginLink = `${frontendBase}/salon/${finalSalonSlug}/staff/login`;
 
-    // Step 5: Send onboarding email
+    // Step 6: Send onboarding email
     const emailHtml = `
-      <h2>Welcome to StyGo Staff Portal!</h2>
+      <h2>Welcome to ${salonName} Staff Portal!</h2>
       <p>Hello ${full_name.split(" ")[0]},</p>
-      <p>You've been added as a staff member at <b>${finalSalonSlug}</b>.</p>
+      <p>You've been added as a staff member at <b>${salonName}</b>.</p>
       <p>Your 4-digit Staff ID: <b>${staffCode}</b></p>
       <p>Please set your personal PIN to activate your account:</p>
       <a href="${setupLink}" 
@@ -224,11 +233,11 @@ exports.addStaff = async (req, res) => {
         <a href="${loginLink}" style="color:#10B981;">${loginLink}</a>
       </p>
       <br/>
-      <p>Thanks,<br/>The StyGo Team</p>
+      <p>Thanks,<br/>The ${salonName} Team</p>
     `;
 
     // Send email in background (don't wait for it)
-    sendEmail(email, "Set Up Your StyGo Staff PIN", emailHtml)
+    sendEmail(email, `Set Up Your ${salonName} Staff PIN`, emailHtml)
       .then(() => console.log("✅ Onboarding email sent successfully"))
       .catch((emailErr) =>
         console.log("⚠️ Email sending failed:", emailErr.message)
