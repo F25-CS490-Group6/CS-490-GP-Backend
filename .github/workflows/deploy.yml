@@ -27,7 +27,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       # -----------------------------
-      # 3. START EC2 INSTANCE
+      # 3. START EC2 INSTANCE.
       # -----------------------------
       - name: Start EC2 instance
         run: |
