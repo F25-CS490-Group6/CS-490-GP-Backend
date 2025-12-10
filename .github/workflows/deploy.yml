@@ -1,4 +1,4 @@
-name: Deploy Backend to EC2
+name: Deploy Backend
 
 on:
   push:
@@ -7,23 +7,34 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Sync code to EC2 production folder
-        run: |
-          rsync -av --delete --exclude='.env' ${{ github.workspace }}/ /home/ubuntu/CS-490-GP-Backend/
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
 
-      - name: Install Node dependencies
-        run: |
-          cd /home/ubuntu/CS-490-GP-Backend
-          npm install
+      - name: Install Dependencies
+        run: npm install
 
-      - name: Restart PM2 (stygo-backend)
-        run: |
-          pm2 stop stygo-backend || true
-          pm2 start /home/ubuntu/CS-490-GP-Backend/app.js --name stygo-backend
-          pm2 save
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            cd /home/ubuntu/CS-490-GP-Backend
+            git pull origin main
+            npm install
+            pm2 stop stygo-backend || true
+            pm2 start app.js --name stygo-backend
+            pm2 save
+
+
+
+            name: Deploy Backend to EC2
