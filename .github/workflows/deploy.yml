@@ -1,4 +1,4 @@
-name: Deploy Backend
+name: Deploy Backend to EC2
 
 on:
   push:
@@ -10,31 +10,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # -----------------------------
+      # 1. CHECKOUT REPO
+      # -----------------------------
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Setup Node
-        uses: actions/setup-node@v3
+      # -----------------------------
+      # 2. CONFIGURE AWS CREDENTIALS
+      # -----------------------------
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          node-version: 18
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Install Dependencies
-        run: npm install
+      # -----------------------------
+      # 3. START EC2 INSTANCE
+      # -----------------------------
+      - name: Start EC2 instance
+        run: |
+          echo "Starting EC2 Instance..."
+          aws ec2 start-instances --instance-ids ${{ secrets.EC2_INSTANCE_ID }}
+          echo "Waiting for instance to be running..."
+          aws ec2 wait instance-running --instance-ids ${{ secrets.EC2_INSTANCE_ID }}
+          echo "EC2 Instance is running."
 
+      # -----------------------------
+      # 4. DEPLOY USING SSH
+      # -----------------------------
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_KEY }}
+          port: 22
           script: |
+            echo "Connected to EC2. Starting deployment..."
             cd /home/ubuntu/CS-490-GP-Backend
             git pull origin main
-            npm install
+            npm install --legacy-peer-deps
             pm2 stop stygo-backend || true
             pm2 start app.js --name stygo-backend
             pm2 save
-
-
-
-            name: Deploy Backend to EC2
+            echo "Deployment successful."
