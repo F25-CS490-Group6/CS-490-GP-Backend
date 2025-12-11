@@ -730,11 +730,44 @@ exports.getSalonByIdPublic = async (req, res) => {
       };
     }
 
+    // Get salon gallery photos
+    const [galleryPhotos] = await db.query(
+      `SELECT photo_id, salon_id, photo_url, caption, created_at 
+       FROM salon_photos 
+       WHERE salon_id = ? 
+       ORDER BY created_at DESC`,
+      [salon_id]
+    );
+
+    // Get backend URL from environment or construct from request
+    const backendUrl = process.env.BACKEND_URL || 
+                      process.env.API_URL || 
+                      (req.protocol + '://' + req.get('host'));
+
+    // Format photo URLs to be absolute if they're relative
+    const formattedPhotos = (galleryPhotos || []).map(photo => ({
+      ...photo,
+      photo_url: photo.photo_url?.startsWith('http') 
+        ? photo.photo_url 
+        : `${backendUrl}${photo.photo_url}`
+    }));
+
+    // Format profile_picture URL if it exists
+    const formattedSalon = {
+      ...salon,
+      profile_picture: salon.profile_picture 
+        ? (salon.profile_picture.startsWith('http') 
+            ? salon.profile_picture 
+            : `${backendUrl}${salon.profile_picture}`)
+        : null
+    };
+
     return res.json({ 
-      ...salon, 
+      ...formattedSalon, 
       amenities, 
       businessHours,
-      bookingSettings
+      bookingSettings,
+      photos: formattedPhotos
     });
   } catch (error) {
     console.error("Error fetching salon:", error);
