@@ -1,24 +1,22 @@
--- Add salon_id to service_photos table to track which salon the photos belong to
--- This allows photos to be associated with a customer's visit to a specific salon
+-- Migration: Add salon_id column to service_photos table
+-- This makes the deployed database match the local database
 
-ALTER TABLE service_photos 
-  ADD COLUMN salon_id INT NULL AFTER appointment_id;
+-- Check if column exists, if not add it
+SET @dbname = DATABASE();
+SET @tablename = 'service_photos';
+SET @columnname = 'salon_id';
 
--- Add index for salon_id lookups
-ALTER TABLE service_photos
-  ADD INDEX idx_salon_id (salon_id);
+SET @preparedStatement = (
+  SELECT IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+     WHERE TABLE_SCHEMA = @dbname 
+     AND TABLE_NAME = @tablename 
+     AND COLUMN_NAME = @columnname) > 0,
+    'SELECT "Column already exists"',
+    'ALTER TABLE service_photos ADD COLUMN salon_id INT NULL AFTER appointment_id, ADD INDEX idx_service_photos_salon (salon_id)'
+  )
+);
 
--- Add foreign key constraint
-ALTER TABLE service_photos
-  ADD CONSTRAINT service_photos_ibfk_salon 
-  FOREIGN KEY (salon_id) REFERENCES salons(salon_id) ON DELETE CASCADE;
-
--- For existing photos, try to populate salon_id from appointments
-UPDATE service_photos sp
-INNER JOIN appointments a ON sp.appointment_id = a.appointment_id
-SET sp.salon_id = a.salon_id
-WHERE sp.appointment_id IS NOT NULL;
-
--- For photos without appointments, we'll need to set salon_id when adding new ones
--- Existing photos without appointments will have NULL salon_id (can be cleaned up later if needed)
-
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
