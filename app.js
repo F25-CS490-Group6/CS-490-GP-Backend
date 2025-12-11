@@ -4,8 +4,6 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
-const swaggerUi = require("swagger-ui-express");
-const swaggerSpec = require("./swagger");
 const { verifyAnyToken } = require("./middleware/verifyAnyTokens");
 const checkRoles = require("./middleware/checkRoles");
 
@@ -34,6 +32,9 @@ const subscriptionRoutes = require("./modules/subscriptions/routes");
 const { db, testConnection, closePool } = require("./config/database");
 
 const app = express();
+
+// ⭐ NEW — correct swagger setup
+require("./swagger")(app);
 
 // Support single FRONTEND_URL plus optional comma-separated FRONTEND_URLS for deployments
 const additionalOrigins = (process.env.FRONTEND_URLS || "")
@@ -67,6 +68,7 @@ app.use(
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+
       if (path.endsWith(".png")) res.setHeader("Content-Type", "image/png");
       else if (path.endsWith(".jpg") || path.endsWith(".jpeg"))
         res.setHeader("Content-Type", "image/jpeg");
@@ -118,6 +120,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
+
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
@@ -133,17 +136,8 @@ app.use(cookieParser());
  *       200:
  *         description: OK
  */
-app.use("/docs.json", verifyAnyToken, checkRoles("admin"), (req, res) =>
-  res.json(swaggerSpec)
-);
-app.use(
-  "/docs",
-  verifyAnyToken,
-  checkRoles("admin"),
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec, { explorer: true })
-);
 
+// API ROUTES
 app.use("/api/salons", salonRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/staff", staffRoutes);
