@@ -21,35 +21,29 @@ const options = {
   apis: ["./app.js", "./modules/**/*.js", "./middleware/**/*.js"],
 };
 
-// Generate spec
+// Generate swagger spec
 const swaggerSpec = swaggerJSDoc(options);
 
-// Export a function that receives `app`
+// Export swagger setup function
 module.exports = (app) => {
   const { verifyAnyToken } = require("./middleware/verifyAnyTokens");
   const checkRoles = require("./middleware/checkRoles");
 
-  // ✔ Raw JSON
-  app.get("/docs.json", (req, res) => {
-    res.json(swaggerSpec);
-  });
+  // Raw JSON
+  app.get("/docs.json", (req, res) => res.json(swaggerSpec));
 
-  // ✔ Public Swagger UI (optional: remove if not needed)
-  app.use(
-    "/docs",
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, { explorer: true })
-  );
+  // Public docs (optional)
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-  // ✔ Protected Swagger UI for admins only
+  // Protected admin docs
   app.use(
     "/admin/docs",
     verifyAnyToken,
     checkRoles("admin"),
     swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, { explorer: true })
+    swaggerUi.setup(swaggerSpec)
   );
 };
 
-// Also export the spec if needed elsewhere
+// export spec if needed
 module.exports.swaggerSpec = swaggerSpec;
