@@ -622,15 +622,8 @@ exports.getSalonByIdPublic = async (req, res) => {
     // Check if approved column exists
     const hasApprovedColumn = hasColumn('approved');
     
-    // Build WHERE clause - salon must be approved AND active for public viewing
+    // Build WHERE clause - allow any salon_id; downstream UI can check status/approved fields
     let whereClause = "s.salon_id = ?";
-    if (hasApprovedColumn) {
-      // Salon must be approved AND active to be visible publicly
-      whereClause += " AND s.approved = 'approved' AND s.status = 'active'";
-    } else {
-      // Fallback: only check status if approved column doesn't exist
-      whereClause += " AND s.status = 'active'";
-    }
 
     const salons = await query(
       `SELECT ${selectFields}
