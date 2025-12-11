@@ -64,7 +64,7 @@ const updateAccountSettings = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating account settings:", error);
-    if (error.message === "Email already in use") {
+    if (error.message === "Email already in use" || error.message.includes("Invalid phone number")) {
       return res.status(400).json({ error: error.message });
     }
     res.status(500).json({ error: "Failed to update account settings" });

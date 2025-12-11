@@ -3,6 +3,23 @@ const bcrypt = require("bcrypt");
 const userService = require("../users/service");
 
 /**
+ * Validate phone number format
+ * Accepts various formats: +1234567890, (123) 456-7890, 123-456-7890, etc.
+ */
+function validatePhone(phone) {
+  if (!phone) return true; // Phone is optional
+
+  // Remove common formatting characters
+  const cleaned = phone.replace(/[\s\-\(\)\.]/g, '');
+
+  // Check if it's a valid international format (E.164)
+  // Should be 10-15 digits, optionally starting with +
+  const phoneRegex = /^\+?[1-9]\d{9,14}$/;
+
+  return phoneRegex.test(cleaned);
+}
+
+/**
  * Get account settings for a user
  */
 async function getAccountSettings(userId) {
@@ -66,6 +83,11 @@ async function updateAccountProfile(userId, updates) {
     if (existing.length > 0) {
       throw new Error("Email already in use");
     }
+  }
+
+  // Validate phone number format if being updated
+  if (updates.phone && !validatePhone(updates.phone)) {
+    throw new Error("Invalid phone number format. Please use a valid format (e.g., +1234567890 or (123) 456-7890)");
   }
 
   fields.push("updated_at = CURRENT_TIMESTAMP");
