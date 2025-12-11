@@ -19,10 +19,12 @@ const buildAuthCookieOptions = (maxAgeMs) => {
   }
 
   if (isProduction) {
-    options.domain =
-      process.env.AUTH_COOKIE_DOMAIN ||
-      process.env.COOKIE_DOMAIN ||
-      ".webershub.com";
+    // Only set domain if explicitly configured in environment variables
+    // Leaving it undefined allows cookies to work on any domain
+    const domain = process.env.AUTH_COOKIE_DOMAIN || process.env.COOKIE_DOMAIN;
+    if (domain) {
+      options.domain = domain;
+    }
   }
 
   return options;
@@ -630,13 +632,15 @@ exports.getCurrentUser = async (req, res) => {
   try {
     const salonNameExpr = await getSalonNameExpression();
     const baseSelect = `
-        SELECT 
-           u.*, 
-           s.salon_id, 
-           s.slug AS salon_slug, 
-           ${salonNameExpr} AS salon_name
+        SELECT
+           u.*,
+           COALESCE(s.salon_id, st.salon_id) AS salon_id,
+           COALESCE(s.slug, s2.slug) AS salon_slug,
+           COALESCE(${salonNameExpr}, s2.salon_name) AS salon_name
          FROM users u
-         LEFT JOIN salons s ON s.owner_id = u.user_id
+         LEFT JOIN salons s ON s.owner_id = u.user_id AND u.user_role = 'owner'
+         LEFT JOIN staff st ON st.user_id = u.user_id AND u.user_role = 'staff' AND st.is_active = 1
+         LEFT JOIN salons s2 ON s2.salon_id = st.salon_id
     `;
 
     if (req.firebaseUser) {

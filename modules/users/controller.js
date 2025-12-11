@@ -101,8 +101,8 @@ const getSalonCustomers = async (req, res) => {
 const getSalonCustomerStats = async (req, res) => {
   try {
     const salonId = Number(req.query.salon_id || req.user?.salon_id);
-    if (!salonId) {
-      return res.status(400).json({ error: "Salon ID required" });
+    if (!salonId || isNaN(salonId) || salonId <= 0) {
+      return res.status(400).json({ error: "Valid salon_id required" });
     }
 
     const [rows] = await db.query(
