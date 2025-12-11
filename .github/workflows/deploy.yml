@@ -7,52 +7,21 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-      # -----------------------------
-      # 1. CHECKOUT REPO
-      # -----------------------------
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # -----------------------------
-      # 2. CONFIGURE AWS CREDENTIALS
-      # -----------------------------
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      # -----------------------------
-      # 3. START EC2 INSTANCE.
-      # -----------------------------
-      - name: Start EC2 instance
+      - name: Sync code to EC2 production folder
         run: |
-          echo "Starting EC2 Instance..."
-          aws ec2 start-instances --instance-ids ${{ secrets.EC2_INSTANCE_ID }}
-          echo "Waiting for instance to be running..."
-          aws ec2 wait instance-running --instance-ids ${{ secrets.EC2_INSTANCE_ID }}
-          echo "EC2 Instance is running."
-
-      # -----------------------------
-      # 4. DEPLOY USING SSH
-      # -----------------------------
-      - name: Deploy to EC2 via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_KEY }}
-          port: 22
-          script: |
-            echo "Connected to EC2. Starting deployment..."
-            cd /home/ubuntu/CS-490-GP-Backend
-            git pull origin main
-            npm install --legacy-peer-deps
-            pm2 stop stygo-backend || true
-            pm2 start app.js --name stygo-backend
-            pm2 save
-            echo "Deployment successful."
+          rsync -av --delete --exclude='.env' ${{ github.workspace }}/ /home/ubuntu/CS-490-GP-Backend/
+      - name: Install Node dependencies
+        run: |
+          cd /home/ubuntu/CS-490-GP-Backend
+          npm install
+      - name: Restart PM2 (stygo-backend)
+        run: |
+          pm2 stop stygo-backend || true
+          pm2 start /home/ubuntu/CS-490-GP-Backend/app.js --name stygo-backend
+          pm2 save

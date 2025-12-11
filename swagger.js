@@ -1,5 +1,7 @@
 const swaggerJSDoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
 
+// Swagger options
 const options = {
   definition: {
     openapi: "3.0.3",
@@ -16,7 +18,6 @@ const options = {
     },
     security: [{ bearerAuth: [] }],
   },
-  // Scan your actual code; adjust if you want fewer files
   apis: ["./app.js", "./modules/**/*.js", "./middleware/**/*.js"],
 };
 
