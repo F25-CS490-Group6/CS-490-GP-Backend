@@ -12,6 +12,8 @@ async function getAccountSettings(userId) {
       full_name,
       email,
       phone,
+      gender,
+      birth_year,
       profile_pic,
       subscription_plan,
       created_at,
@@ -31,6 +33,8 @@ async function getAccountSettings(userId) {
     full_name: user.full_name,
     email: user.email,
     phone: user.phone,
+    gender: user.gender || null,
+    birth_year: user.birth_year || null,
     profile_pic: user.profile_pic,
     subscription_plan: user.subscription_plan || 'free',
     created_at: user.created_at,
@@ -42,7 +46,7 @@ async function getAccountSettings(userId) {
  * Update account profile (name, email, phone, profile_pic)
  */
 async function updateAccountProfile(userId, updates) {
-  const allowedFields = ["full_name", "email", "phone", "profile_pic"];
+  const allowedFields = ["full_name", "email", "phone", "profile_pic", "gender", "birth_year"];
   const fields = [];
   const values = [];
 
@@ -237,4 +241,3 @@ module.exports = {
   updateSubscription,
   deleteAccount,
 };
-

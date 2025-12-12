@@ -132,7 +132,7 @@ const getIncidents = (windowMinutes = 24 * 60) => {
 const getRecentErrors = async (limit = 10) => {
   try {
     const [auditRows] = await db.query(
-      `SELECT id, event_type, event_note, created_at 
+      `SELECT salon_id, event_type, event_note, created_at 
        FROM salon_audit 
        WHERE event_type = 'ERROR'
        ORDER BY created_at DESC 
@@ -141,7 +141,10 @@ const getRecentErrors = async (limit = 10) => {
     );
 
     const auditErrors = auditRows.map((row) => ({
-      id: row.id,
+      id:
+        row.created_at && !Number.isNaN(new Date(row.created_at).getTime())
+          ? `${row.salon_id || "audit"}-${new Date(row.created_at).getTime()}`
+          : `audit-${Math.random().toString(36).slice(2)}`,
       service: row.event_type || "audit",
       message: row.event_note || "Error",
       timestamp: row.created_at,

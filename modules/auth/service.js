@@ -20,11 +20,11 @@ async function findUserByEmail(email) {
 
 async function createUser(full_name, phone, email, role = "customer", options = {}) {
   // Let MySQL auto-increment the user_id (integer)
-  const { gender, date_of_birth } = options;
-  
+  const { gender = null, birth_year = null } = options;
+
   const [userResult] = await db.query(
-    "INSERT INTO users (full_name, phone, email, user_role, gender, date_of_birth) VALUES (?, ?, ?, ?, ?, ?)",
-    [full_name, phone, email, role, gender || null, date_of_birth || null]
+    "INSERT INTO users (full_name, phone, email, user_role, gender, birth_year) VALUES (?, ?, ?, ?, ?, ?)",
+    [full_name, phone, email, role, gender, birth_year]
   );
   return userResult.insertId;
 }

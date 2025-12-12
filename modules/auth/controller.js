@@ -162,6 +162,8 @@ exports.signupManual = async (req, res) => {
     email,
     password,
     role,
+    gender,
+    birth_year,
     businessName,
     businessAddress,
     businessCity,
@@ -169,8 +171,6 @@ exports.signupManual = async (req, res) => {
     businessZip,
     businessCountry,
     businessWebsite,
-    gender,
-    date_of_birth,
   } = req.body;
 
   if (!full_name || !phone || !email || !password) {
@@ -182,6 +182,8 @@ exports.signupManual = async (req, res) => {
       return res.status(409).json({ error: "Email already registered" });
 
     const userRole = role || "customer";
+    const normalizedGender = gender || null;
+    const birthYearVal = birth_year || null;
     const ownerBusinessName =
       req.body.business_name ||
       businessName ||
@@ -197,7 +199,7 @@ exports.signupManual = async (req, res) => {
       phone,
       email,
       userRole,
-      { gender, date_of_birth }
+      { gender: normalizedGender, birth_year: birthYearVal }
     );
 
     try {

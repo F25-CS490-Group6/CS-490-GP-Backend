@@ -3,21 +3,156 @@ const { db } = require("../../config/database");
 const systemHealth = require("../../services/systemHealth");
 
 exports.getUserEngagement = async () => {
-  // Count users who have logged in within the last 30 days
-  // Join with auth table to check last_login timestamp
-  const [activeUsers] = await db.query(
-    `SELECT COUNT(DISTINCT u.user_id) AS active_user_count 
+  // Helpers for counts
+  const getScalar = (rows, key) => {
+    if (!rows || rows.length === 0) return 0;
+    const val = rows[0][key];
+    return val === null || val === undefined ? 0 : Number(val);
+  };
+
+  // Customers: active by window
+  const [dauRows] = await db.query(
+    `SELECT COUNT(DISTINCT u.user_id) AS count
      FROM users u
      LEFT JOIN auth a ON u.user_id = a.user_id
-     WHERE a.last_login >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        OR (a.last_login IS NULL AND u.updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY))`
+     WHERE (a.last_login >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        OR u.updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        OR u.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY))`
   );
-  const [totalUsers] = await db.query(
+  const [mauRows] = await db.query(
+    `SELECT COUNT(DISTINCT u.user_id) AS count
+     FROM users u
+     LEFT JOIN auth a ON u.user_id = a.user_id
+     LEFT JOIN appointments ap ON ap.user_id = u.user_id
+     WHERE (a.last_login >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        OR u.updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        OR u.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        OR ap.scheduled_time >= DATE_SUB(NOW(), INTERVAL 30 DAY))`
+  );
+  const [totalUsersRows] = await db.query(
     `SELECT COUNT(*) AS total_user_count FROM users`
   );
+
+  // Bookings / completion / repeat
+  const [bookings7d] = await db.query(
+    `SELECT COUNT(*) AS count FROM appointments WHERE scheduled_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)`
+  );
+  const [bookings30d] = await db.query(
+    `SELECT COUNT(*) AS count FROM appointments WHERE scheduled_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
+  );
+  const [completed30d] = await db.query(
+    `SELECT COUNT(*) AS count FROM appointments 
+     WHERE scheduled_time >= DATE_SUB(NOW(), INTERVAL 30 DAY) 
+       AND status IN ('completed','confirmed','done')`
+  );
+  const [cancelled30d] = await db.query(
+    `SELECT COUNT(*) AS count FROM appointments 
+     WHERE scheduled_time >= DATE_SUB(NOW(), INTERVAL 30 DAY) 
+       AND status IN ('cancelled','canceled','no-show','noshow')`
+  );
+  const [repeat90d] = await db.query(
+    `SELECT COUNT(*) AS count FROM (
+        SELECT user_id
+        FROM appointments
+        WHERE scheduled_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+        GROUP BY user_id
+        HAVING COUNT(appointment_id) > 1
+      ) t`
+  );
+
+  // Reviews/messages (best-effort if tables exist)
+  let reviews30dCount = 0;
+  try {
+    const [reviews30d] = await db.query(
+      `SELECT COUNT(*) AS count FROM reviews WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
+    );
+    reviews30dCount = getScalar(reviews30d, "count");
+  } catch (err) {
+    reviews30dCount = 0;
+  }
+
+  let messages30dCount = 0;
+  try {
+    const [messages30d] = await db.query(
+      `SELECT COUNT(*) AS count FROM messages WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
+    );
+    messages30dCount = getScalar(messages30d, "count");
+  } catch (err) {
+    messages30dCount = 0;
+  }
+
+  // Inactive customers
+  const [inactive60d] = await db.query(
+    `SELECT COUNT(*) AS count FROM users u
+     LEFT JOIN auth a ON u.user_id = a.user_id
+     WHERE u.user_role = 'customer'
+       AND (a.last_login IS NULL OR a.last_login < DATE_SUB(NOW(), INTERVAL 60 DAY))
+       AND u.updated_at < DATE_SUB(NOW(), INTERVAL 60 DAY)`
+  );
+
+  // Owner/staff engagement
+  const [activeOwners30d] = await db.query(
+    `SELECT COUNT(DISTINCT u.user_id) AS count
+     FROM users u
+     LEFT JOIN auth a ON u.user_id = a.user_id
+     WHERE u.user_role IN ('owner','salon_owner','staff')
+       AND (a.last_login >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+         OR u.updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY))`
+  );
+
+  const [activeSalons30d] = await db.query(
+    `SELECT COUNT(DISTINCT s.salon_id) AS count
+     FROM salons s
+     LEFT JOIN appointments ap ON ap.salon_id = s.salon_id
+     WHERE (ap.scheduled_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        OR s.updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        OR s.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY))`
+  );
+  const [totalSalons] = await db.query(
+    `SELECT COUNT(*) AS count FROM salons`
+  );
+
+  const [ownerAppointments30d] = await db.query(
+    `SELECT COUNT(*) AS count
+     FROM appointments ap
+     WHERE ap.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
+  );
+
+  // Staff logins 30d (owners + staff roles)
+  const [staffLogins30d] = await db.query(
+    `SELECT COUNT(DISTINCT a.user_id) AS count
+     FROM auth a
+     JOIN users u ON u.user_id = a.user_id
+     WHERE a.last_login >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+       AND u.user_role IN ('owner','salon_owner','staff')`
+  );
+
   return {
-    activeUsers: activeUsers[0],
-    totalUsers: totalUsers[0]
+    customers: {
+      dau_7d: getScalar(dauRows, "count"),
+      mau_30d: getScalar(mauRows, "count"),
+      total_users: getScalar(totalUsersRows, "total_user_count"),
+      bookings_7d: getScalar(bookings7d, "count"),
+      bookings_30d: getScalar(bookings30d, "count"),
+      completion_rate_30d: (() => {
+        const completed = getScalar(completed30d, "count");
+        const cancelled = getScalar(cancelled30d, "count");
+        const total = completed + cancelled;
+        if (total === 0) return 0;
+        return Number(((completed / total) * 100).toFixed(2));
+      })(),
+      repeat_customers_90d: getScalar(repeat90d, "count"),
+      reviews_30d: reviews30dCount,
+      messages_30d: messages30dCount,
+      inactive_60d: getScalar(inactive60d, "count"),
+    },
+    owners: {
+      active_owners_30d: getScalar(activeOwners30d, "count"),
+      active_salons_30d: getScalar(activeSalons30d, "count"),
+      total_salons: getScalar(totalSalons, "count"),
+      owner_created_appointments_30d: getScalar(ownerAppointments30d, "count"),
+      staff_logins_30d: getScalar(staffLogins30d, "count"),
+    },
   };
 };
 
@@ -80,10 +215,53 @@ exports.getLoyaltyUsage = async () => {
 };
 
 exports.getUserDemographics = async () => {
-  const [demographics] = await db.query(
-    `SELECT user_role, COUNT(*) AS count FROM users GROUP BY user_role`
-  );
-  return demographics;
+  let gender = [];
+  let age = [];
+
+  try {
+    [gender] = await db.query(
+      `SELECT COALESCE(gender, 'unknown') AS bucket, COUNT(*) AS count
+       FROM users
+       WHERE user_role = 'customer'
+       GROUP BY bucket`
+    );
+  } catch (err) {
+    console.warn("Gender demographics query failed, falling back:", err?.message);
+    [gender] = await db.query(
+      `SELECT 'unknown' AS bucket, COUNT(*) AS count
+       FROM users
+       WHERE user_role = 'customer'`
+    );
+  }
+
+  try {
+    [age] = await db.query(
+      `SELECT
+          CASE
+            WHEN birth_year IS NULL THEN 'unknown'
+            WHEN TIMESTAMPDIFF(YEAR, STR_TO_DATE(CONCAT(birth_year,'-01-01'), '%Y-%m-%d'), CURDATE()) < 18 THEN '<18'
+            WHEN TIMESTAMPDIFF(YEAR, STR_TO_DATE(CONCAT(birth_year,'-01-01'), '%Y-%m-%d'), CURDATE()) BETWEEN 18 AND 24 THEN '18-24'
+            WHEN TIMESTAMPDIFF(YEAR, STR_TO_DATE(CONCAT(birth_year,'-01-01'), '%Y-%m-%d'), CURDATE()) BETWEEN 25 AND 34 THEN '25-34'
+            WHEN TIMESTAMPDIFF(YEAR, STR_TO_DATE(CONCAT(birth_year,'-01-01'), '%Y-%m-%d'), CURDATE()) BETWEEN 35 AND 44 THEN '35-44'
+            WHEN TIMESTAMPDIFF(YEAR, STR_TO_DATE(CONCAT(birth_year,'-01-01'), '%Y-%m-%d'), CURDATE()) BETWEEN 45 AND 54 THEN '45-54'
+            WHEN TIMESTAMPDIFF(YEAR, STR_TO_DATE(CONCAT(birth_year,'-01-01'), '%Y-%m-%d'), CURDATE()) BETWEEN 55 AND 64 THEN '55-64'
+            ELSE '65+'
+          END AS bucket,
+          COUNT(*) AS count
+       FROM users
+       WHERE user_role = 'customer'
+       GROUP BY bucket`
+    );
+  } catch (err) {
+    console.warn("Age demographics query failed, falling back:", err?.message);
+    [age] = await db.query(
+      `SELECT 'unknown' AS bucket, COUNT(*) AS count
+       FROM users
+       WHERE user_role = 'customer'`
+    );
+  }
+
+  return { gender, age };
 };
 
 exports.getCustomerRetention = async () => {
