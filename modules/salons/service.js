@@ -6,10 +6,12 @@ async function createSalon({ ownerId, name, address, description, phone, city, e
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
     [ownerId, name, address, description, phone || null, email || null, website || null, profile_picture || null]
   );
-  // create salon_settings default row
-  await db.query("INSERT INTO salon_settings (salon_id) VALUES (?)", [
-    result.insertId,
-  ]);
+  // create salon_settings default row with proper loyalty defaults
+  await db.query(
+    `INSERT INTO salon_settings (salon_id, loyalty_enabled, points_per_dollar, points_per_visit, redeem_rate, min_points_redeem) 
+     VALUES (?, 1, 1.00, 10, 0.01, 100)`, 
+    [result.insertId]
+  );
   // add salon_audit
   await db.query(
     "INSERT INTO salon_audit (salon_id, event_type, event_note, performed_by) VALUES (?, ?, ?, ?)",
