@@ -86,7 +86,7 @@
         "email": "hello@urbansalon.com",
         "description": "Contemporary salon specializing in cutting-edge styles and modern techniques. From trendy cuts to vibrant color, we bring your hair vision to life with expert precision and creativity.",
         "website": "https://urbanedgesalon.com",
-        "profile_picture": "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?q=80&w=2070&auto=format&fit=crop"
+        "profile_picture": "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069&auto=format&fit=crop"
       },
       "settings": {
         "businessHours": {
@@ -130,7 +130,7 @@
         { "name": "Cameron Lee", "role": "Barber", "phone": "3105554503", "email": "cameron@urbansalon.com", "specialization": "Beard Grooming, Classic Cuts, Hot Towel Shaves" }
       ],
       "photos": [
-        { "url": "https://images.unsplash.com/photo-1599351431613-4e4446da4e14?q=80&w=2071", "type": "cover", "caption": "Urban Edge Salon - LA's Modern Style Hub", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069", "type": "cover", "caption": "Urban Edge Salon - LA's Modern Style Hub", "is_primary": true },
         { "url": "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?q=80&w=2070", "type": "interior", "caption": "Contemporary styling floor", "is_primary": false },
         { "url": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074", "type": "interior", "caption": "Modern barbershop area", "is_primary": false },
         { "url": "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?q=80&w=2074", "type": "gallery", "caption": "Creative color work", "is_primary": false }
@@ -427,7 +427,7 @@
         "email": "hello@chicsalon.com",
         "description": "Seattle's boutique salon featuring organic hair care, innovative color techniques, and personalized styling. Where Pacific Northwest style meets urban sophistication.",
         "website": "https://chicsalon.com",
-        "profile_picture": "https://images.unsplash.com/photo-1559599238-1c999946dd90?q=80&w=2069&auto=format&fit=crop"
+        "profile_picture": "https://images.unsplash.com/photo-1596704017254-9b121068ec31?q=80&w=2070&auto=format&fit=crop"
       },
       "settings": {
         "businessHours": {
@@ -471,7 +471,7 @@
         { "name": "Lily Chen", "role": "Hair Stylist", "phone": "2065556603", "email": "lily@chicsalon.com", "specialization": "Precision Cuts, Keratin, Styling" }
       ],
       "photos": [
-        { "url": "https://images.unsplash.com/photo-1559599238-1c999946dd90?q=80&w=2069", "type": "cover", "caption": "Chic Salon Seattle - Organic Beauty", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1596704017254-9b121068ec31?q=80&w=2070", "type": "cover", "caption": "Chic Salon Seattle - Organic Beauty", "is_primary": true },
         { "url": "https://images.unsplash.com/photo-1596704017254-9b121068ec31?q=80&w=2070", "type": "interior", "caption": "Natural light styling area", "is_primary": false },
         { "url": "https://images.unsplash.com/photo-1610992015732-2449b76344bc?q=80&w=2070", "type": "interior", "caption": "Organic product bar", "is_primary": false },
         { "url": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=2069", "type": "gallery", "caption": "Natural color work", "is_primary": false }
