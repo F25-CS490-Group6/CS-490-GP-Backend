@@ -70,13 +70,84 @@ exports.getSalonRevenues = async (startDate = null, endDate = null) => {
 };
 
 exports.getLoyaltyUsage = async () => {
-  const [usage] = await db.query(
-    `SELECT salon_id, SUM(points) AS total_points
+  // Get total enrolled users across all salons
+  const [totalEnrolled] = await db.query(
+    `SELECT COUNT(DISTINCT user_id) AS total_enrolled_users FROM loyalty`
+  );
+
+  // Get active users (earned or redeemed in last 30 days)
+  const [activeUsers] = await db.query(
+    `SELECT COUNT(DISTINCT user_id) AS active_users
      FROM loyalty
      WHERE last_earned >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-     GROUP BY salon_id`
+        OR last_redeemed >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
   );
-  return usage;
+
+  // Get total points statistics
+  const [pointsStats] = await db.query(
+    `SELECT
+      SUM(points) AS total_points_outstanding,
+      AVG(points) AS avg_points_per_user,
+      MAX(points) AS max_points
+     FROM loyalty`
+  );
+
+  // Get salon-specific breakdown
+  const [salonBreakdown] = await db.query(
+    `SELECT
+      s.salon_id,
+      s.name AS salon_name,
+      COUNT(DISTINCT l.user_id) AS enrolled_users,
+      SUM(l.points) AS total_points,
+      AVG(l.points) AS avg_points_per_user,
+      COUNT(DISTINCT CASE
+        WHEN l.last_earned >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+          OR l.last_redeemed >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        THEN l.user_id
+      END) AS active_users_30d
+     FROM loyalty l
+     JOIN salons s ON l.salon_id = s.salon_id
+     GROUP BY s.salon_id, s.name
+     ORDER BY total_points DESC`
+  );
+
+  // Get points earned vs redeemed trends (last 30 days)
+  const [pointsTrends] = await db.query(
+    `SELECT
+      DATE(last_earned) AS date,
+      SUM(points) AS points_activity
+     FROM loyalty
+     WHERE last_earned >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+     GROUP BY DATE(last_earned)
+     ORDER BY date DESC
+     LIMIT 30`
+  );
+
+  // Get redemption activity
+  const [redemptionStats] = await db.query(
+    `SELECT
+      COUNT(DISTINCT user_id) AS users_who_redeemed,
+      COUNT(DISTINCT CASE
+        WHEN last_redeemed >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        THEN user_id
+      END) AS recent_redeemers
+     FROM loyalty
+     WHERE last_redeemed IS NOT NULL`
+  );
+
+  return {
+    overview: {
+      total_enrolled_users: totalEnrolled[0]?.total_enrolled_users || 0,
+      active_users_30d: activeUsers[0]?.active_users || 0,
+      total_points_outstanding: pointsStats[0]?.total_points_outstanding || 0,
+      avg_points_per_user: Math.round(pointsStats[0]?.avg_points_per_user || 0),
+      max_points: pointsStats[0]?.max_points || 0,
+      users_who_redeemed: redemptionStats[0]?.users_who_redeemed || 0,
+      recent_redeemers_30d: redemptionStats[0]?.recent_redeemers || 0
+    },
+    salon_breakdown: salonBreakdown,
+    trends: pointsTrends
+  };
 };
 
 exports.getUserDemographics = async () => {
@@ -148,6 +219,7 @@ exports.convertReportsToCSV = (reports) => {
 };
 
 exports.getSystemLogs = async () => {
+  // Get event type summary
   const [logs] = await db.query(
     `SELECT event_type, COUNT(*) AS count
      FROM salon_audit
@@ -156,7 +228,38 @@ exports.getSystemLogs = async () => {
      ORDER BY count DESC
      LIMIT 50`
   );
-  return logs;
+
+  // Get recent detailed logs
+  const [recentLogs] = await db.query(
+    `SELECT
+      audit_id,
+      salon_id,
+      event_type,
+      event_note,
+      performed_by,
+      created_at
+     FROM salon_audit
+     ORDER BY created_at DESC
+     LIMIT 100`
+  );
+
+  // Get error statistics (rejected/blocked events)
+  const [errorStats] = await db.query(
+    `SELECT
+      DATE(created_at) AS date,
+      COUNT(*) AS error_count
+     FROM salon_audit
+     WHERE event_type IN ('REJECTED', 'BLOCKED')
+       AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+     GROUP BY DATE(created_at)
+     ORDER BY date DESC`
+  );
+
+  return {
+    event_summary: logs,
+    recent_logs: recentLogs,
+    error_trends: errorStats
+  };
 };
 
 /**
@@ -269,45 +372,200 @@ exports.updateSalonRegistration = async (salonId, approvalStatus, adminUserId) =
   };
 };
 
-// Get platform health (derived from audit activity and DB reachability)
+/**
+ * Get comprehensive system health metrics
+ */
 exports.getSystemHealth = async () => {
-  // DB/uptime checks with rolling tracker
-  const dbCheck = await systemHealth.checkDatabase();
-  const uptimePercent = systemHealth.getUptimePercent();
-
-  // Error trend: use salon_audit activity as a proxy over the last hour
-  const [trendRows] = await db.query(
-    `SELECT DATE_FORMAT(created_at, '%H:%i') AS minute, COUNT(*) AS count
-     FROM salon_audit
-     WHERE created_at >= DATE_SUB(NOW(), INTERVAL 60 MINUTE)
-     GROUP BY minute
-     ORDER BY minute ASC`
-  );
-
-  // Error counts in last 24h
-  const [errorCountRows] = await db.query(
-    `SELECT COUNT(*) AS count
-     FROM salon_audit
-     WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`
-  );
-  const totalErrors24h = Number(errorCountRows?.[0]?.count || 0);
-
-  const totalEventsLastHour = trendRows.reduce((sum, row) => sum + Number(row.count || 0), 0);
-  const errorRatePerMin = totalEventsLastHour / 60;
-
-  return {
-    uptime_percent: uptimePercent,
-    avg_latency_ms: dbCheck.latencyMs,
-    last_up: dbCheck.lastUp,
-    last_down: dbCheck.lastDown,
-    error_rate_per_min: Number(errorRatePerMin.toFixed(2)),
-    total_errors_24h: totalErrors24h,
-    sentry_enabled: Boolean(process.env.SENTRY_DSN),
-    incidents: systemHealth.getIncidents(),
-    recent_errors: await systemHealth.getRecentErrors(10),
-    error_trend: trendRows.map((row) => ({
-      minute: row.minute,
-      count: Number(row.count || 0),
-    })),
+  const healthMetrics = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    checks: {}
   };
+
+  try {
+    // Database connectivity check with timing
+    const dbStart = Date.now();
+    const [dbCheck] = await db.query('SELECT 1 AS status');
+    const dbLatency = Date.now() - dbStart;
+
+    healthMetrics.checks.database = {
+      status: dbCheck[0]?.status === 1 ? 'healthy' : 'degraded',
+      latency_ms: dbLatency,
+      connected: true
+    };
+  } catch (err) {
+    healthMetrics.status = 'unhealthy';
+    healthMetrics.checks.database = {
+      status: 'unhealthy',
+      connected: false,
+      error: err.message
+    };
+  }
+
+  try {
+    // Check database table accessibility
+    const [tableCheck] = await db.query(`
+      SELECT COUNT(*) AS table_count
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
+    `);
+
+    healthMetrics.checks.database_tables = {
+      status: 'healthy',
+      table_count: tableCheck[0]?.table_count || 0
+    };
+  } catch (err) {
+    healthMetrics.checks.database_tables = {
+      status: 'degraded',
+      error: err.message
+    };
+  }
+
+  try {
+    // Get recent error rate from audit logs
+    const [errorRate] = await db.query(`
+      SELECT
+        COUNT(*) AS total_events,
+        SUM(CASE WHEN event_type IN ('REJECTED', 'BLOCKED') THEN 1 ELSE 0 END) AS error_events
+      FROM salon_audit
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+    `);
+
+    const total = errorRate[0]?.total_events || 0;
+    const errors = errorRate[0]?.error_events || 0;
+    const errorPercentage = total > 0 ? (errors / total * 100).toFixed(2) : 0;
+
+    healthMetrics.checks.error_rate = {
+      status: errorPercentage < 5 ? 'healthy' : errorPercentage < 15 ? 'degraded' : 'unhealthy',
+      error_percentage: parseFloat(errorPercentage),
+      total_events_1h: total,
+      error_events_1h: errors
+    };
+  } catch (err) {
+    healthMetrics.checks.error_rate = {
+      status: 'unknown',
+      error: err.message
+    };
+  }
+
+  try {
+    // Check active connections and load
+    const [connections] = await db.query(`
+      SELECT
+        (SELECT COUNT(*) FROM appointments WHERE status = 'scheduled') AS scheduled_appointments,
+        (SELECT COUNT(*) FROM users WHERE updated_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)) AS active_users_24h,
+        (SELECT COUNT(*) FROM payments WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)) AS payments_1h
+    `);
+
+    healthMetrics.checks.system_load = {
+      status: 'healthy',
+      scheduled_appointments: connections[0]?.scheduled_appointments || 0,
+      active_users_24h: connections[0]?.active_users_24h || 0,
+      payments_last_hour: connections[0]?.payments_1h || 0
+    };
+  } catch (err) {
+    healthMetrics.checks.system_load = {
+      status: 'unknown',
+      error: err.message
+    };
+  }
+
+  // Determine overall health status
+  const statuses = Object.values(healthMetrics.checks).map(check => check.status);
+  if (statuses.includes('unhealthy')) {
+    healthMetrics.status = 'unhealthy';
+  } else if (statuses.includes('degraded')) {
+    healthMetrics.status = 'degraded';
+  }
+
+  return healthMetrics;
+};
+
+/**
+ * Get platform uptime and performance metrics
+ */
+exports.getPlatformReliability = async () => {
+  try {
+    // Calculate database uptime by checking oldest connection
+    const [uptimeData] = await db.query(`
+      SELECT
+        MIN(created_at) AS oldest_record,
+        MAX(created_at) AS latest_record,
+        TIMESTAMPDIFF(SECOND, MIN(created_at), NOW()) AS uptime_seconds
+      FROM salon_audit
+    `);
+
+    // Get success vs failure rates
+    const [activityMetrics] = await db.query(`
+      SELECT
+        DATE(created_at) AS date,
+        COUNT(*) AS total_events,
+        SUM(CASE WHEN event_type = 'APPROVED' THEN 1 ELSE 0 END) AS successful_events,
+        SUM(CASE WHEN event_type IN ('REJECTED', 'BLOCKED') THEN 1 ELSE 0 END) AS failed_events
+      FROM salon_audit
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+    `);
+
+    // Get API performance indicators
+    const [performanceMetrics] = await db.query(`
+      SELECT
+        COUNT(*) AS total_appointments,
+        AVG(TIMESTAMPDIFF(SECOND, created_at, updated_at)) AS avg_processing_time_sec,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) AS completed,
+        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) AS cancelled
+      FROM appointments
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    `);
+
+    // Calculate success rate
+    const [overallMetrics] = await db.query(`
+      SELECT
+        COUNT(*) AS total_events,
+        SUM(CASE WHEN event_type = 'APPROVED' THEN 1 ELSE 0 END) AS success_count,
+        SUM(CASE WHEN event_type IN ('REJECTED', 'BLOCKED') THEN 1 ELSE 0 END) AS failure_count
+      FROM salon_audit
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    `);
+
+    const totalEvents = overallMetrics[0]?.total_events || 0;
+    const successCount = overallMetrics[0]?.success_count || 0;
+    const successRate = totalEvents > 0 ? ((successCount / totalEvents) * 100).toFixed(2) : 100;
+
+    // Calculate uptime percentage (assume 99.9% if no failures)
+    const failureCount = overallMetrics[0]?.failure_count || 0;
+    const uptimePercentage = totalEvents > 0
+      ? (((totalEvents - failureCount) / totalEvents) * 100).toFixed(3)
+      : '99.999';
+
+    return {
+      uptime: {
+        uptime_percentage: parseFloat(uptimePercentage),
+        uptime_seconds: uptimeData[0]?.uptime_seconds || 0,
+        uptime_days: Math.floor((uptimeData[0]?.uptime_seconds || 0) / 86400),
+        oldest_record: uptimeData[0]?.oldest_record,
+        latest_record: uptimeData[0]?.latest_record
+      },
+      reliability: {
+        success_rate_30d: parseFloat(successRate),
+        total_events_30d: totalEvents,
+        successful_events: successCount,
+        failed_events: failureCount
+      },
+      performance: {
+        avg_appointment_processing_time_sec: Math.round(performanceMetrics[0]?.avg_processing_time_sec || 0),
+        total_appointments_7d: performanceMetrics[0]?.total_appointments || 0,
+        completed_appointments_7d: performanceMetrics[0]?.completed || 0,
+        cancelled_appointments_7d: performanceMetrics[0]?.cancelled || 0,
+        completion_rate_7d: performanceMetrics[0]?.total_appointments > 0
+          ? ((performanceMetrics[0]?.completed / performanceMetrics[0]?.total_appointments) * 100).toFixed(2)
+          : 0
+      },
+      daily_activity: activityMetrics
+    };
+  } catch (err) {
+    console.error('Platform reliability error:', err);
+    throw new Error(`Failed to get platform reliability metrics: ${err.message}`);
+  }
 };

@@ -521,6 +521,45 @@ const deleteUser = async (req, res) => {
 };
 
 // ----------------------
+// GET CUSTOMER VISIT HISTORY
+// ----------------------
+const getCustomerVisitHistory = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { salon_id } = req.query;
+
+    if (!salon_id) {
+      return res.status(400).json({ error: "salon_id query parameter is required" });
+    }
+
+    const [appointments] = await db.query(
+      `SELECT
+        a.appointment_id,
+        a.scheduled_time,
+        a.status,
+        s.name AS service_name,
+        CONCAT(staff_user.full_name) AS staff_name,
+        s.duration_minutes,
+        s.price,
+        a.notes,
+        a.created_at
+      FROM appointments a
+      JOIN services s ON a.service_id = s.service_id
+      LEFT JOIN staff ON a.staff_id = staff.staff_id
+      LEFT JOIN users staff_user ON staff.user_id = staff_user.user_id
+      WHERE a.user_id = ? AND a.salon_id = ?
+      ORDER BY a.scheduled_time DESC`,
+      [userId, salon_id]
+    );
+
+    res.json(appointments);
+  } catch (error) {
+    console.error("Error fetching customer visit history:", error);
+    res.status(500).json({ error: "Failed to fetch customer visit history" });
+  }
+};
+
+// ----------------------
 // EXPORT
 // ----------------------
 module.exports = {
@@ -533,6 +572,7 @@ module.exports = {
   addSalonCustomer,
   updateSalonCustomer,
   deleteSalonCustomer,
+  getCustomerVisitHistory,
   getUserById,
   updateUser,
   deleteUser,
