@@ -92,8 +92,40 @@ exports.getCustomerRetention = async (req, res) => {
 
 exports.getReports = async (req, res) => {
   try {
-    const reports = await adminService.getReports();
-    res.json(reports);
+    const { start_date, end_date, format } = req.query;
+    const { reports, summary } = await adminService.getReports(start_date, end_date);
+
+    if ((format || "").toLowerCase() === "csv") {
+      const lines = [];
+      lines.push(["salon_id", "salon_name", "total_sales"].join(","));
+      (reports || []).forEach((r) => {
+        lines.push(
+          [
+            r.salon_id ?? "",
+            (r.salon_name || "").replace(/,/g, " "),
+            r.total_sales ?? 0,
+          ].join(",")
+        );
+      });
+
+      // Append summary block
+      lines.push("");
+      if (summary) {
+        lines.push("summary,value");
+        lines.push(["total_revenue", summary.total_revenue ?? 0].join(","));
+        lines.push(["total_payments", summary.total_payments ?? 0].join(","));
+        lines.push(["total_bookings", summary.total_bookings ?? 0].join(","));
+        lines.push(["completed_bookings", summary.completed_bookings ?? 0].join(","));
+        lines.push(["cancelled_bookings", summary.cancelled_bookings ?? 0].join(","));
+      }
+
+      const csv = lines.join("\n");
+      res.header("Content-Type", "text/csv");
+      res.attachment("admin-reports.csv");
+      return res.send(csv);
+    }
+
+    res.json({ reports, summary });
   } catch (err) {
     console.error("Get reports error:", err);
     res.status(500).json({ error: "Failed to get reports" });
