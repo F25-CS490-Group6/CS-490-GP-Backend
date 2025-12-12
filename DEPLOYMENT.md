@@ -58,7 +58,8 @@ eb setenv \
   FIREBASE_CLIENT_EMAIL=your_client_email \
   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nyour_key\n-----END PRIVATE KEY-----\n" \
   CLICKSEND_USERNAME=your_clicksend_username \
-  CLICKSEND_APIKEY=your_clicksend_key
+  CLICKSEND_APIKEY=your_clicksend_key \
+  CLICKSEND_FROM_NUMBER=+18339034543
 ```
 
 #### 5. Deploy Updates

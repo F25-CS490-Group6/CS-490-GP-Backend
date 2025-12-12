@@ -5,6 +5,7 @@ class ClickSendService {
     this.username = process.env.CLICKSEND_USERNAME;
     this.apiKey =
       process.env.CLICKSEND_APIKEY || process.env.CLICKSEND_API_KEY || null;
+    this.fromNumber = process.env.CLICKSEND_FROM_NUMBER || "+18339034543";
     this.fromName = process.env.OTP_FROM_NAME || "StyGo";
   }
 
@@ -30,7 +31,7 @@ class ClickSendService {
             source: "api",
             body: message,
             to: validPhoneNumber,
-            from: this.fromName,
+            from: this.fromNumber,
           },
         ],
       };

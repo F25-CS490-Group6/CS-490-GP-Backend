@@ -127,6 +127,7 @@ TWILIO_AUTH_TOKEN=optional
 TWILIO_PHONE_NUMBER=optional
 CLICKSEND_USERNAME=optional_clicksend_username
 CLICKSEND_APIKEY=optional_clicksend_key
+CLICKSEND_FROM_NUMBER=+18339034543
 OTP_FROM_NAME=StyGo
 ```
 
