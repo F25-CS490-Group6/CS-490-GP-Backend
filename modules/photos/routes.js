@@ -5,6 +5,9 @@ const photoController = require("./controller");
 const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
 const upload = require("../../middleware/upload");
 
+// Download proxy - avoids CORS issues for S3 images
+router.get("/download", verifyAnyToken, photoController.downloadPhoto);
+
 // Service photos (before/after)
 // IMPORTANT: Specific routes must come before dynamic routes
 router.post("/add", verifyAnyToken, upload.single('photo'), photoController.addServicePhoto);

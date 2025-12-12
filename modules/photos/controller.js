@@ -387,3 +387,42 @@ exports.deleteServicePhoto = async (req, res) => {
   }
 };
 
+// Download photo proxy - avoids CORS issues for S3 images
+exports.downloadPhoto = async (req, res) => {
+  try {
+    const { url, filename } = req.query;
+    
+    if (!url) {
+      return res.status(400).json({ error: "URL parameter required" });
+    }
+
+    // Fetch the image from S3 or wherever it's hosted
+    const https = require("https");
+    const http = require("http");
+    
+    const protocol = url.startsWith("https") ? https : http;
+    
+    protocol.get(url, (response) => {
+      if (response.statusCode !== 200) {
+        return res.status(response.statusCode).json({ error: "Failed to fetch image" });
+      }
+      
+      // Set headers for download
+      const contentType = response.headers["content-type"] || "image/jpeg";
+      const downloadFilename = filename || "photo.jpg";
+      
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", `attachment; filename="${downloadFilename}"`);
+      
+      // Pipe the image data to the response
+      response.pipe(res);
+    }).on("error", (err) => {
+      console.error("Download proxy error:", err);
+      res.status(500).json({ error: "Failed to download image" });
+    });
+  } catch (err) {
+    console.error("Download photo error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
