@@ -7,7 +7,7 @@ const { verifyCustomJwt } = require("../../middleware/verifyCustomJwt");
 // Protected routes (must be before generic :salon_id route)
 const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
 router.post("/add", verifyAnyToken, reviewController.addReview);
-router.put("/respond/:id", verifyCustomJwt, reviewController.addReviewResponse);
+router.put("/respond/:id", verifyAnyToken, reviewController.addReviewResponse);
 router.put("/:id", verifyAnyToken, reviewController.updateReview);
 router.delete("/:id", verifyAnyToken, reviewController.deleteReview);
 

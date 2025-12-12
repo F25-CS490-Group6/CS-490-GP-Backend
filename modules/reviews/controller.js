@@ -39,8 +39,9 @@ exports.addReviewResponse = async (req, res) => {
     const review_id = req.params.id;
     const { response, salon_id } = req.body;
     const userId = req.user?.user_id || req.user?.id;
+    const staffId = req.user?.staff_id;
     
-    if (!userId) {
+    if (!userId && !staffId) {
       return res.status(401).json({ error: "Not authenticated" });
     }
     
@@ -48,8 +49,12 @@ exports.addReviewResponse = async (req, res) => {
       return res.status(400).json({ error: "Salon ID is required" });
     }
     
-    // Verify user is the salon owner
     const { db } = require("../../config/database");
+    
+    // Check if user is salon owner OR staff member of the salon
+    let isAuthorized = false;
+    
+    // Check if salon owner
     const [salons] = await db.query(
       "SELECT owner_id FROM salons WHERE salon_id = ?",
       [salon_id]
@@ -59,7 +64,22 @@ exports.addReviewResponse = async (req, res) => {
       return res.status(404).json({ error: "Salon not found" });
     }
     
-    if (salons[0].owner_id !== userId && req.user?.user_role !== 'admin') {
+    if (salons[0].owner_id === userId || req.user?.user_role === 'admin') {
+      isAuthorized = true;
+    }
+    
+    // Check if staff member of this salon
+    if (!isAuthorized && staffId) {
+      const [staff] = await db.query(
+        "SELECT staff_id FROM staff WHERE staff_id = ? AND salon_id = ?",
+        [staffId, salon_id]
+      );
+      if (staff && staff.length > 0) {
+        isAuthorized = true;
+      }
+    }
+    
+    if (!isAuthorized) {
       return res.status(403).json({ error: "Not authorized to respond to reviews for this salon" });
     }
     
