@@ -12,6 +12,23 @@ exports.sendAppointmentReminder = async (req, res) => {
   }
 };
 
+/**
+ * Manually process the notification queue
+ * Useful for testing and manual triggers
+ */
+exports.processQueue = async (req, res) => {
+  try {
+    const processed = await notificationService.processNotificationQueue();
+    res.json({ 
+      message: "Queue processed successfully", 
+      processed_count: processed 
+    });
+  } catch (err) {
+    console.error("Queue processing error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.sendPromotionalOffer = async (req, res) => {
   try {
     const { user_ids, message, scheduled_for } = req.body;

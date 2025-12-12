@@ -9,6 +9,9 @@ router.post("/promotion", verifyAnyToken, notificationController.sendPromotional
 router.post("/delay", verifyAnyToken, notificationController.notifyClientDelay);
 router.post("/discount", verifyAnyToken, notificationController.notifyUserDiscount);
 
+// Queue processing endpoint (for testing/manual trigger)
+router.post("/process-queue", verifyAnyToken, notificationController.processQueue);
+
 router.get("/", verifyAnyToken, notificationController.getUserNotifications);
 router.put("/:id/read", verifyAnyToken, notificationController.markNotificationRead);
 router.put("/read-all", verifyAnyToken, notificationController.markAllNotificationsRead);
