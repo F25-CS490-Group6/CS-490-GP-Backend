@@ -256,7 +256,7 @@ exports.processNotificationQueue = async () => {
         // For email reminders, send actual email (if email is configured)
         else if (queued.delivery_method === 'email') {
           try {
-            const { sendEmail } = require('../../config/mailer');
+            const { sendEmail } = require('../../services/email');
             
             const emailHtml = `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

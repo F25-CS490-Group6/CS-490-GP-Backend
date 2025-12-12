@@ -405,7 +405,7 @@ exports.confirmPayment = async (checkoutSessionId, paymentIntentId) => {
 
     // Send confirmation email to customer
     try {
-      const { sendEmail } = require("../../config/mailer");
+      const { sendEmail } = require("../../services/email");
       const [[appointment]] = await db.query(
         `SELECT a.*, s.name as salon_name, s.address as salon_address, u.full_name, u.email 
          FROM appointments a
@@ -1169,7 +1169,7 @@ exports.confirmUnifiedCheckout = async (checkoutSessionId, paymentIntentId) => {
 
   // 6b. Send confirmation email to customer
   try {
-    const { sendEmail } = require("../../config/mailer");
+    const { sendEmail } = require("../../services/email");
     const [[user]] = await db.query(
       `SELECT u.full_name, u.email, s.name as salon_name, s.address as salon_address
        FROM users u
