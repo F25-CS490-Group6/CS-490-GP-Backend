@@ -1,6 +1,6 @@
 # Professional Salon Mock Data - Login Credentials
 
-✅ **Successfully created 2 fully-functional professional salons**
+✅ **Successfully created 4 fully-functional professional salons**
 
 ---
 
@@ -119,16 +119,121 @@
 
 ---
 
+## 🏢 Salon 3: Elegance Hair Studio
+
+### 📍 Location
+- **Address**: 321 Michigan Avenue, Chicago, IL 60611, United States
+- **Phone**: (312) 555-6789
+- **Email**: contact@elegancestudio.com
+- **Website**: https://elegancestudio.com
+
+### 👤 Owner Account
+- **Name**: Elena Rodriguez
+- **Email**: `elena@elegancestudio.com`
+- **Password**: `Elegance2024!`
+
+### 👥 Staff Accounts (Password: `Staff2024!` for all)
+1. **Sofia Valentina** - Hair Stylist
+   - Email: `sofia@elegancestudio.com`
+   - Specialization: Precision Cuts, European Techniques, Styling
+
+2. **Marco Bellini** - Colorist
+   - Email: `marco@elegancestudio.com`
+   - Specialization: Balayage, Color Correction, Dimensional Color
+
+3. **Jasmine Wu** - Hair Stylist
+   - Email: `jasmine@elegancestudio.com`
+   - Specialization: Keratin Treatments, Asian Hair, Bridal Styling
+
+### 💇 Services (8 total)
+- Precision Cut - $95.00
+- Color Transformation - $285.00
+- Balayage Artistry - $265.00
+- Brazilian Blowout - $350.00
+- Olaplex Restoration - $85.00
+- Luxury Blowout - $65.00
+- Special Event Styling - $125.00
+- Men's Executive Cut - $75.00
+
+### 🛍️ Products (5 total)
+- Kerastase Resistance Set - $98.00 (20 in stock)
+- Brazilian Blowout Acai Treatment - $145.00 (15 in stock)
+- Oribe Gold Lust Collection - $125.00 (12 in stock)
+- Bumble and Bumble Styling Suite - $78.00 (25 in stock)
+- GHD Professional Styling Tool - $229.00 (8 in stock)
+
+### ⚙️ Settings Configured
+- **Business Hours**: Mon 10am-7pm, Tue-Wed 9am-8pm, Thu-Fri 9am-9pm, Sat 8am-6pm, Sun 11am-5pm
+- **Amenities**: Complimentary Wine & Coffee, WiFi, Valet Parking, Designer Products, Scalp Massage
+- **Loyalty Program**: Enabled (75 points per visit, 3 points per dollar spent)
+- **Deposit Required**: 25%
+- **Cancellation Policy**: 48-hour notice for color services, 24-hour for cuts
+
+---
+
+## 🏢 Salon 4: Trendsetter Salon & Spa
+
+### 📍 Location
+- **Address**: 567 Market Street, San Francisco, CA 94102, United States
+- **Phone**: (415) 555-9012
+- **Email**: hello@trendsettersalon.com
+- **Website**: https://trendsettersalon.com
+
+### 👤 Owner Account
+- **Name**: Michael Chen
+- **Email**: `michael@trendsettersalon.com`
+- **Password**: `Trend2024!`
+
+### 👥 Staff Accounts (Password: `Staff2024!` for all)
+1. **Kai Anderson** - Stylist
+   - Email: `kai@trendsettersalon.com`
+   - Specialization: Fashion Colors, Pixie Cuts, Sustainable Styling
+
+2. **Luna Martinez** - Colorist
+   - Email: `luna@trendsettersalon.com`
+   - Specialization: Vivid Colors, Color Melting, Organic Dyes
+
+3. **River Thompson** - Technician
+   - Email: `river@trendsettersalon.com`
+   - Specialization: Spa Treatments, Facials, Wellness Massage
+
+### 💇 Services (8 total)
+- Sustainable Haircut - $78.00
+- Vivid Color Experience - $215.00
+- Natural Balayage - $195.00
+- Organic Deep Treatment - $68.00
+- Detox Scalp Treatment - $58.00
+- Wellness Facial - $95.00
+- Zen Massage - $110.00
+- Express Style - $42.00
+
+### 🛍️ Products (6 total)
+- Aveda Botanical Repair Set - $72.00 (30 in stock)
+- Davines Love Smoothing Collection - $64.00 (28 in stock)
+- Organic Argan Oil - $45.00 (40 in stock)
+- Eco-Friendly Styling Cream - $32.00 (35 in stock)
+- Bamboo Hair Brush - $28.00 (20 in stock)
+- Organic Scalp Serum - $52.00 (22 in stock)
+
+### ⚙️ Settings Configured
+- **Business Hours**: Closed Monday, Tue-Wed 9am-8pm, Thu-Fri 9am-9pm, Sat 8am-7pm, Sun 10am-6pm
+- **Amenities**: Organic Tea & Coffee, WiFi, Eco-Friendly Products, Complimentary Consultations, Relaxation Lounge
+- **Loyalty Program**: Enabled (40 points per visit, 1.5 points per dollar spent)
+- **Deposit Required**: 15%
+- **Cancellation Policy**: 24-hour advance notice required
+
+---
+
 ## 📊 Quick Stats
 
-| Feature | Luxe Beauty Studio | Urban Edge Salon |
-|---------|-------------------|------------------|
-| Services | 8 | 8 |
-| Products | 5 | 6 |
-| Staff Members | 3 | 3 |
-| Status | Active | Active |
-| Loyalty Program | ✅ Enabled | ✅ Enabled |
-| Deposit Percentage | 20% | 0% |
+| Feature | Luxe Beauty | Urban Edge | Elegance Studio | Trendsetter Spa |
+|---------|-------------|------------|-----------------|-----------------|
+| Services | 8 | 8 | 8 | 8 |
+| Products | 5 | 6 | 5 | 6 |
+| Staff Members | 3 | 3 | 3 | 3 |
+| Status | Active | Active | Active | Active |
+| Loyalty Program | ✅ | ✅ | ✅ | ✅ |
+| Deposit % | 20% | 0% | 25% | 15% |
 
 ---
 

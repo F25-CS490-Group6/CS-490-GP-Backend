@@ -37,11 +37,38 @@
 │   • cameron@urbansalon.com     (Barber)                                    │
 └──────────────────────────────────────────────────────────────────────────────┘
 
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SALON 3: Elegance Hair Studio (Chicago, IL)                                 │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ OWNER:                                                                       │
+│   Email:    elena@elegancestudio.com                                        │
+│   Password: Elegance2024!                                                   │
+│                                                                              │
+│ STAFF (all use password: Staff2024!):                                       │
+│   • sofia@elegancestudio.com   (Hair Stylist)                              │
+│   • marco@elegancestudio.com   (Colorist)                                  │
+│   • jasmine@elegancestudio.com (Hair Stylist)                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SALON 4: Trendsetter Salon & Spa (San Francisco, CA)                        │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ OWNER:                                                                       │
+│   Email:    michael@trendsettersalon.com                                    │
+│   Password: Trend2024!                                                      │
+│                                                                              │
+│ STAFF (all use password: Staff2024!):                                       │
+│   • kai@trendsettersalon.com   (Stylist)                                   │
+│   • luna@trendsettersalon.com  (Colorist)                                  │
+│   • river@trendsettersalon.com (Technician)                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║ WHAT'S INCLUDED IN EACH SALON:                                              ║
 ║   ✓ 8 Professional Services                                                 ║
 ║   ✓ 5-6 Products with Stock                                                 ║
 ║   ✓ 3 Staff Members                                                         ║
+║   ✓ 8 Professional Photos                                                   ║
 ║   ✓ Business Hours Configured                                               ║
 ║   ✓ Amenities & Policies Set                                                ║
 ║   ✓ Loyalty Program Enabled                                                 ║
