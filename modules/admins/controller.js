@@ -135,16 +135,54 @@ exports.verifySalonRegistration = async (req, res) => {
     res.status(200).json(result);
   } catch (err) {
     console.error("Verify salon registration error:", err);
-    
+
     if (err.message === "Salon not found") {
       return res.status(404).json({ error: err.message });
     }
-    
+
     if (err.message.includes("Invalid approval status")) {
       return res.status(400).json({ error: err.message });
     }
 
     res.status(500).json({ error: err.message || "Failed to verify salon registration" });
+  }
+};
+
+/**
+ * Get comprehensive system health metrics
+ * GET /api/admins/health
+ */
+exports.getSystemHealth = async (req, res) => {
+  try {
+    const health = await adminService.getSystemHealth();
+
+    // Set HTTP status based on health status
+    const statusCode = health.status === 'healthy' ? 200 :
+                       health.status === 'degraded' ? 200 :
+                       503;
+
+    res.status(statusCode).json(health);
+  } catch (err) {
+    console.error("System health error:", err);
+    res.status(500).json({
+      status: 'error',
+      error: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+/**
+ * Get platform uptime and reliability metrics
+ * GET /api/admins/platform-reliability
+ */
+exports.getPlatformReliability = async (req, res) => {
+  try {
+    const metrics = await adminService.getPlatformReliability();
+    res.json(metrics);
+  } catch (err) {
+    console.error("Platform reliability error:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 

@@ -21,4 +21,8 @@ const options = {
   apis: ["./app.js", "./modules/**/*.js", "./middleware/**/*.js"],
 };
 
-module.exports = swaggerJSDoc(options);
+const swaggerSpec = swaggerJSDoc(options);
+
+module.exports = (app) => {
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+};
