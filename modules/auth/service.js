@@ -18,11 +18,13 @@ async function findUserByEmail(email) {
   return rows[0];
 }
 
-async function createUser(full_name, phone, email, role = "customer") {
+async function createUser(full_name, phone, email, role = "customer", options = {}) {
   // Let MySQL auto-increment the user_id (integer)
+  const { gender, date_of_birth } = options;
+  
   const [userResult] = await db.query(
-    "INSERT INTO users (full_name, phone, email, user_role) VALUES (?, ?, ?, ?)",
-    [full_name, phone, email, role]
+    "INSERT INTO users (full_name, phone, email, user_role, gender, date_of_birth) VALUES (?, ?, ?, ?, ?, ?)",
+    [full_name, phone, email, role, gender || null, date_of_birth || null]
   );
   return userResult.insertId;
 }

@@ -169,6 +169,8 @@ exports.signupManual = async (req, res) => {
     businessZip,
     businessCountry,
     businessWebsite,
+    gender,
+    date_of_birth,
   } = req.body;
 
   if (!full_name || !phone || !email || !password) {
@@ -194,7 +196,8 @@ exports.signupManual = async (req, res) => {
       full_name,
       phone,
       email,
-      userRole
+      userRole,
+      { gender, date_of_birth }
     );
 
     try {
@@ -1050,5 +1053,68 @@ exports.setupAdmin = async (req, res) => {
       error: "Server error while setting up admin",
       message: err.message 
     });
+  }
+};
+
+// Update user profile (demographics, contact info)
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.user?.user_id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const { full_name, phone, email, gender, date_of_birth } = req.body;
+
+    // Build update query dynamically based on provided fields
+    const updates = [];
+    const values = [];
+
+    if (full_name) {
+      updates.push("full_name = ?");
+      values.push(full_name);
+    }
+    if (phone !== undefined) {
+      updates.push("phone = ?");
+      values.push(phone);
+    }
+    if (email) {
+      updates.push("email = ?");
+      values.push(email);
+    }
+    if (gender !== undefined) {
+      updates.push("gender = ?");
+      values.push(gender || null);
+    }
+    if (date_of_birth !== undefined) {
+      updates.push("date_of_birth = ?");
+      values.push(date_of_birth || null);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
+
+    values.push(userId);
+
+    const { db } = require("../../config/database");
+    await db.query(
+      `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`,
+      values
+    );
+
+    // Fetch updated user data
+    const [userRows] = await db.query(
+      "SELECT user_id, full_name, email, phone, gender, date_of_birth, user_role FROM users WHERE user_id = ?",
+      [userId]
+    );
+
+    res.json({
+      message: "Profile updated successfully",
+      user: userRows[0] || null,
+    });
+  } catch (err) {
+    console.error("Error updating profile:", err);
+    res.status(500).json({ error: "Failed to update profile" });
   }
 };

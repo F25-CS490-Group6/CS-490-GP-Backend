@@ -30,6 +30,8 @@ router.get("/profile", verifyCustomJwt, (req, res) => {
   });
 });
 
+router.put("/profile", verifyCustomJwt, authController.updateProfile);
+
 // =============================
 // FIREBASE OAUTH AUTHENTICATION
 // =============================
