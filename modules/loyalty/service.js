@@ -106,10 +106,17 @@ exports.getLoyaltyConfig = async (salon_id) => {
   );
 
   if (rows[0]) {
-    return rows[0];
+    // Properly coerce loyalty_enabled to boolean (MySQL returns 0/1)
+    return {
+      loyalty_enabled: rows[0].loyalty_enabled === 1 || rows[0].loyalty_enabled === true,
+      points_per_dollar: parseFloat(rows[0].points_per_dollar) || 1.00,
+      points_per_visit: parseInt(rows[0].points_per_visit) || 10,
+      redeem_rate: parseFloat(rows[0].redeem_rate) || 0.01,
+      min_points_redeem: parseInt(rows[0].min_points_redeem) || 100
+    };
   }
 
-  // Return defaults if not configured
+  // Return defaults if not configured - loyalty enabled by default
   return {
     loyalty_enabled: true,
     points_per_dollar: 1.00,
@@ -173,5 +180,128 @@ exports.getUserLoyaltySummary = async (user_id) => {
   );
   console.log(`[Loyalty] getUserLoyaltySummary for user ${user_id}: found ${rows.length} salons with points`);
   return rows;
+};
+
+// ===== REWARDS =====
+
+exports.getSalonRewards = async (salon_id) => {
+  const [rows] = await db.query(
+    `SELECT * FROM salon_rewards WHERE salon_id = ? AND is_active = TRUE ORDER BY points_required ASC`,
+    [salon_id]
+  );
+  return rows;
+};
+
+exports.createReward = async (salon_id, name, description, points_required) => {
+  const [result] = await db.query(
+    `INSERT INTO salon_rewards (salon_id, name, description, points_required) VALUES (?, ?, ?, ?)`,
+    [salon_id, name, description, points_required]
+  );
+  return result.insertId;
+};
+
+exports.deleteReward = async (reward_id, salon_id) => {
+  await db.query(`DELETE FROM salon_rewards WHERE reward_id = ? AND salon_id = ?`, [reward_id, salon_id]);
+};
+
+exports.redeemReward = async (user_id, salon_id, reward_id) => {
+  const [[reward]] = await db.query(
+    `SELECT * FROM salon_rewards WHERE reward_id = ? AND salon_id = ? AND is_active = TRUE`,
+    [reward_id, salon_id]
+  );
+  if (!reward) throw new Error("Reward not found");
+
+  const userPoints = await this.getLoyaltyPoints(user_id, salon_id);
+  if (userPoints < reward.points_required) {
+    throw new Error(`Need ${reward.points_required} points, have ${userPoints}`);
+  }
+
+  await this.redeemLoyaltyPoints(user_id, salon_id, reward.points_required);
+  
+  await db.query(
+    `INSERT INTO user_rewards (user_id, salon_id, reward_id) VALUES (?, ?, ?)`,
+    [user_id, salon_id, reward_id]
+  );
+
+  return reward;
+};
+
+exports.getUserRewards = async (user_id) => {
+  const [rows] = await db.query(
+    `SELECT ur.*, sr.name, sr.points_required, s.name as salon_name
+     FROM user_rewards ur
+     JOIN salon_rewards sr ON ur.reward_id = sr.reward_id
+     JOIN salons s ON ur.salon_id = s.salon_id
+     WHERE ur.user_id = ? ORDER BY ur.redeemed_at DESC`,
+    [user_id]
+  );
+  return rows;
+};
+
+// ===== PROMO CODES =====
+
+exports.validatePromoCode = async (code, salon_id, subtotal, user_id = null) => {
+  const [rows] = await db.query(
+    `SELECT * FROM promo_codes 
+     WHERE code = ? AND salon_id = ? AND is_active = 1
+     AND (end_date IS NULL OR end_date >= CURDATE())
+     AND (usage_limit IS NULL OR usage_limit = 0 OR used_count < usage_limit)`,
+    [code.toUpperCase(), salon_id]
+  );
+  
+  if (!rows[0]) return { valid: false, error: "Invalid or expired promo code" };
+  
+  const promo = rows[0];
+
+  // Check if user has already used this promo code (single-use per customer)
+  if (user_id) {
+    const [usage] = await db.query(
+      `SELECT id FROM promo_code_usage WHERE promo_id = ? AND user_id = ?`,
+      [promo.promo_id, user_id]
+    );
+    if (usage.length > 0) {
+      return { valid: false, error: "You have already used this promo code" };
+    }
+  }
+  
+  const discount = promo.discount_type === 'percentage' 
+    ? (subtotal * promo.discount_value / 100)
+    : Math.min(promo.discount_value, subtotal);
+  
+  return { valid: true, discount: parseFloat(discount.toFixed(2)), promo };
+};
+
+exports.usePromoCode = async (promo_id, user_id) => {
+  // Increment global usage count
+  await db.query(`UPDATE promo_codes SET used_count = used_count + 1 WHERE promo_id = ?`, [promo_id]);
+  
+  // Track per-user usage (so they can't use again)
+  if (user_id) {
+    await db.query(
+      `INSERT IGNORE INTO promo_code_usage (promo_id, user_id) VALUES (?, ?)`,
+      [promo_id, user_id]
+    );
+  }
+};
+
+exports.getSalonPromoCodes = async (salon_id) => {
+  const [rows] = await db.query(
+    `SELECT * FROM promo_codes WHERE salon_id = ? ORDER BY created_at DESC`,
+    [salon_id]
+  );
+  return rows;
+};
+
+exports.createPromoCode = async (salon_id, code, discount_type, discount_value) => {
+  const [result] = await db.query(
+    `INSERT INTO promo_codes (salon_id, code, discount_type, discount_value)
+     VALUES (?, ?, ?, ?)`,
+    [salon_id, code.toUpperCase(), discount_type === 'percent' ? 'percentage' : 'fixed', discount_value]
+  );
+  return result.insertId;
+};
+
+exports.deletePromoCode = async (promo_id, salon_id) => {
+  await db.query(`DELETE FROM promo_codes WHERE promo_id = ? AND salon_id = ?`, [promo_id, salon_id]);
 };
 

@@ -18,5 +18,18 @@ router.get("/:user_id/:salon_id", verifyAnyToken, loyaltyController.getLoyaltyPo
 router.post("/config", verifyAnyToken, loyaltyController.setLoyaltyConfig);
 router.get("/config/:salon_id", verifyAnyToken, loyaltyController.getLoyaltyConfig);
 
+// Rewards endpoints
+router.get("/rewards/salon/:salon_id", loyaltyController.getSalonRewards);
+router.get("/rewards/my", verifyAnyToken, loyaltyController.getMyRewards);
+router.post("/rewards", verifyAnyToken, loyaltyController.createReward);
+router.post("/rewards/redeem", verifyAnyToken, loyaltyController.redeemReward);
+router.delete("/rewards/:reward_id", verifyAnyToken, loyaltyController.deleteReward);
+
+// Promo code endpoints
+router.post("/promo/validate", loyaltyController.validatePromoCode);
+router.get("/promo/salon/:salon_id", verifyAnyToken, loyaltyController.getSalonPromoCodes);
+router.post("/promo", verifyAnyToken, loyaltyController.createPromoCode);
+router.delete("/promo/:promo_id", verifyAnyToken, loyaltyController.deletePromoCode);
+
 module.exports = router;
 

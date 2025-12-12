@@ -137,3 +137,103 @@ exports.calculateDiscount = async (req, res) => {
   }
 };
 
+// ===== REWARDS =====
+
+exports.getSalonRewards = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const rewards = await loyaltyService.getSalonRewards(salon_id);
+    res.json({ rewards });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.createReward = async (req, res) => {
+  try {
+    const { salon_id, name, description, points_required } = req.body;
+    const reward_id = await loyaltyService.createReward(salon_id, name, description, points_required);
+    res.status(201).json({ reward_id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deleteReward = async (req, res) => {
+  try {
+    const { reward_id } = req.params;
+    const { salon_id } = req.body;
+    await loyaltyService.deleteReward(reward_id, salon_id);
+    res.json({ message: "Deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.redeemReward = async (req, res) => {
+  try {
+    const user_id = req.user.user_id || req.user.id;
+    const { salon_id, reward_id } = req.body;
+    const reward = await loyaltyService.redeemReward(user_id, salon_id, reward_id);
+    res.json({ message: "Reward redeemed!", reward });
+  } catch (err) {
+    res.status(err.message.includes("Need") ? 400 : 500).json({ error: err.message });
+  }
+};
+
+exports.getMyRewards = async (req, res) => {
+  try {
+    const user_id = req.user.user_id || req.user.id;
+    const rewards = await loyaltyService.getUserRewards(user_id);
+    res.json({ rewards });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ===== PROMO CODES =====
+
+exports.validatePromoCode = async (req, res) => {
+  try {
+    const { code, salon_id, subtotal } = req.body;
+    const result = await loyaltyService.validatePromoCode(code, salon_id, subtotal || 0);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getSalonPromoCodes = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const codes = await loyaltyService.getSalonPromoCodes(salon_id);
+    res.json({ codes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.createPromoCode = async (req, res) => {
+  try {
+    const { salon_id, code, discount_type, discount_value } = req.body;
+    const promo_id = await loyaltyService.createPromoCode(salon_id, code, discount_type, discount_value);
+    res.status(201).json({ promo_id });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: "This code already exists" });
+    }
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deletePromoCode = async (req, res) => {
+  try {
+    const { promo_id } = req.params;
+    const { salon_id } = req.body;
+    await loyaltyService.deletePromoCode(promo_id, salon_id);
+    res.json({ message: "Deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+

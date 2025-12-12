@@ -13,31 +13,26 @@ router.delete("/:id", verifyAnyToken, reviewController.deleteReview);
 
 // Public routes - get reviews for a salon (optional auth to show edit/delete for own reviews)
 // Support both /api/reviews/salon/:salon_id and /api/reviews/:salon_id
-// Use verifyAnyToken as optional middleware - it won't fail if no token, but will attach user if token exists
-router.get("/salon/:salon_id", (req, res, next) => {
-  // Try to verify token if present, but don't fail if missing
+const optionalAuth = (req, res, next) => {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
   if (token) {
-    // Token exists, verify it
+    // Try to verify, but don't fail if invalid - just continue without user
     const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
-    return verifyAnyToken(req, res, next);
+    verifyAnyToken(req, res, (err) => {
+      // If verification fails, just continue without user (public route)
+      if (err) {
+        req.user = null;
+      }
+      next();
+    });
+  } else {
+    next();
   }
-  // No token, continue without auth
-  next();
-}, reviewController.getSalonReviews);
-router.get("/:salon_id", (req, res, next) => {
-  // Try to verify token if present, but don't fail if missing
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
-  if (token) {
-    // Token exists, verify it
-    const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
-    return verifyAnyToken(req, res, next);
-  }
-  // No token, continue without auth
-  next();
-}, reviewController.getSalonReviews);
+};
+
+router.get("/salon/:salon_id", optionalAuth, reviewController.getSalonReviews);
+router.get("/:salon_id", optionalAuth, reviewController.getSalonReviews);
 
 module.exports = router;
 

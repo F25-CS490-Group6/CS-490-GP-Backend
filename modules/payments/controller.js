@@ -10,7 +10,7 @@ const paymentService = require("./service");
  */
 exports.createCheckout = async (req, res) => {
   try {
-    const { amount, appointment_id, type, items, products, points_to_redeem = 0, salon_id } = req.body;
+    const { amount, appointment_id, type, items, products, points_to_redeem = 0, salon_id, promo_code, promo_discount = 0, skip_email = true } = req.body;
     const user_id = req.user.user_id || req.user.id || req.user.userId;
 
     if (!user_id) {
@@ -66,16 +66,20 @@ exports.createCheckout = async (req, res) => {
       parseFloat(amount),
       appointment_id,
       points_to_redeem,
-      salon_id
+      salon_id,
+      promo_code,
+      promo_discount,
+      skip_email // Skip email for direct web checkout (user will be redirected to Stripe)
     );
 
     res.json({
       success: true,
-      message: "Payment link sent to your email",
+      message: skip_email ? "Redirecting to payment" : "Payment link sent to your email",
       payment_id: result.payment_id,
       payment_link: result.payment_link,
       points_redeemed: result.points_redeemed || 0,
       discount_applied: result.discount_applied || 0,
+      promo_applied: !!promo_code,
     });
   } catch (err) {
     console.error("Checkout error:", err);
@@ -99,11 +103,11 @@ exports.getPaymentsForSalon = async (req, res) => {
 
 /**
  * Create unified checkout (for cart with products + services)
- * Supports optional loyalty point redemption
+ * Supports optional loyalty point redemption and promo codes
  */
 exports.createUnifiedCheckout = async (req, res) => {
   try {
-    const { salon_id, cart_id, points_to_redeem = 0 } = req.body;
+    const { salon_id, cart_id, points_to_redeem = 0, promo_code } = req.body;
     const user_id = req.user.user_id || req.user.id;
 
     if (!salon_id || !cart_id) {
@@ -114,7 +118,8 @@ exports.createUnifiedCheckout = async (req, res) => {
       user_id,
       salon_id,
       cart_id,
-      points_to_redeem
+      points_to_redeem,
+      promo_code
     );
 
     res.json({
@@ -122,7 +127,8 @@ exports.createUnifiedCheckout = async (req, res) => {
       message: "Payment link sent to your email",
       payment_id: result.payment_id,
       payment_link: result.payment_link,
-      points_redeemed: points_to_redeem,
+      points_redeemed: result.points_redeemed || points_to_redeem,
+      promo_discount: result.promo_discount || 0,
     });
   } catch (err) {
     console.error("Create unified checkout error:", err);

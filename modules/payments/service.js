@@ -7,7 +7,7 @@ const { sendEmail } = require("../../services/email");
  * Create Stripe checkout session and send payment link email
  * Supports optional loyalty point redemption
  */
-exports.createCheckoutAndNotify = async (user_id, amount, appointment_id, points_to_redeem = 0, salon_id = null) => {
+exports.createCheckoutAndNotify = async (user_id, amount, appointment_id, points_to_redeem = 0, salon_id = null, promo_code = null, promo_discount = 0, skip_email = false) => {
   // 1. Get user and appointment details
   const [[user]] = await db.query(
     "SELECT email, full_name FROM users WHERE user_id = ?",
@@ -64,7 +64,10 @@ exports.createCheckoutAndNotify = async (user_id, amount, appointment_id, points
     }
   }
 
-  const finalAmount = subtotal - discount;
+  // Apply promo discount (already validated on frontend, but ensure non-negative)
+  const effectivePromoDiscount = Math.max(0, promo_discount || 0);
+  const totalDiscount = discount + effectivePromoDiscount;
+  const finalAmount = Math.max(0, subtotal - totalDiscount);
 
   // 2. Get all individual services for the appointment
   const [services] = await db.query(
@@ -105,12 +108,12 @@ exports.createCheckoutAndNotify = async (user_id, amount, appointment_id, points
 
   // 3. Create Stripe Checkout Session with discount if applicable
   // Apply discount to line items proportionally
-  const discountedLineItems = discount > 0 && lineItems.length > 0
+  const discountedLineItems = totalDiscount > 0 && lineItems.length > 0
     ? lineItems.map((item, index) => {
         // Calculate proportional discount for each item
         const itemTotal = item.price_data.unit_amount * item.quantity;
         const totalBeforeDiscount = lineItems.reduce((sum, li) => sum + (li.price_data.unit_amount * li.quantity), 0);
-        const itemDiscount = Math.round((itemTotal / totalBeforeDiscount) * (discount * 100));
+        const itemDiscount = Math.round((itemTotal / totalBeforeDiscount) * (totalDiscount * 100));
 
         return {
           ...item,
@@ -134,9 +137,29 @@ exports.createCheckoutAndNotify = async (user_id, amount, appointment_id, points
       salon_id: effective_salon_id,
       points_redeemed: actualPointsRedeemed.toString(),
       subtotal: subtotal.toFixed(2),
-      discount: discount.toFixed(2),
+      loyalty_discount: discount.toFixed(2),
+      promo_code: promo_code || '',
+      promo_discount: effectivePromoDiscount.toFixed(2),
     },
   });
+
+  // Mark promo code as used (if provided)
+  if (promo_code && effective_salon_id) {
+    try {
+      const loyaltyService = require("../loyalty/service");
+      // Find the promo_id for this code
+      const [[promo]] = await db.query(
+        `SELECT promo_id FROM promo_codes WHERE code = ? AND salon_id = ?`,
+        [promo_code.toUpperCase(), effective_salon_id]
+      );
+      if (promo) {
+        await loyaltyService.usePromoCode(promo.promo_id, user_id);
+      }
+    } catch (err) {
+      console.error('Error marking promo code as used:', err);
+      // Don't fail the payment for this
+    }
+  }
 
   // 4. Save payment record with final amount
   const [result] = await db.query(
@@ -146,52 +169,54 @@ exports.createCheckoutAndNotify = async (user_id, amount, appointment_id, points
     [user_id, finalAmount, appointment_id, session.id, session.url]
   );
 
-  // 5. Send email notification with payment link
-  const servicesList = services.length > 0
-    ? services.map(s => `<li>${s.custom_name} - $${Number(s.price).toFixed(2)}</li>`).join('')
-    : `<li>${appointment.service_name || 'Appointment'} - $${subtotal.toFixed(2)}</li>`;
+  // 5. Send email notification with payment link (only if not skipped - skip for direct web checkout)
+  if (!skip_email) {
+    const servicesList = services.length > 0
+      ? services.map(s => `<li>${s.custom_name} - $${Number(s.price).toFixed(2)}</li>`).join('')
+      : `<li>${appointment.service_name || 'Appointment'} - $${subtotal.toFixed(2)}</li>`;
 
-  const emailHtml = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #333;">Complete Your Payment</h2>
-      <p>Hi ${user.full_name},</p>
-      <p>Your appointment has been booked! Please complete your payment to confirm:</p>
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Complete Your Payment</h2>
+        <p>Hi ${user.full_name},</p>
+        <p>Your appointment has been booked! Please complete your payment to confirm:</p>
 
-      <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <p><strong>Salon:</strong> ${appointment.salon_name}</p>
-        <p><strong>Date:</strong> ${new Date(appointment.scheduled_time || appointment.appointment_date).toLocaleString()}</p>
-        <p><strong>Services:</strong></p>
-        <ul style="margin: 10px 0; padding-left: 20px;">
-          ${servicesList}
-        </ul>
-        ${discount > 0 ? `
-          <p style="margin-top: 15px;"><strong>Subtotal:</strong> $${subtotal.toFixed(2)}</p>
-          <p style="color: #28a745;"><strong>Loyalty Discount:</strong> -$${discount.toFixed(2)} (${actualPointsRedeemed} points)</p>
-          <p style="font-size: 18px; font-weight: bold;"><strong>Total Amount:</strong> $${finalAmount.toFixed(2)}</p>
-        ` : `
-          <p style="margin-top: 15px; font-size: 18px;"><strong>Total Amount:</strong> $${finalAmount.toFixed(2)}</p>
-        `}
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p><strong>Salon:</strong> ${appointment.salon_name}</p>
+          <p><strong>Date:</strong> ${new Date(appointment.scheduled_time || appointment.appointment_date).toLocaleString()}</p>
+          <p><strong>Services:</strong></p>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            ${servicesList}
+          </ul>
+          ${discount > 0 ? `
+            <p style="margin-top: 15px;"><strong>Subtotal:</strong> $${subtotal.toFixed(2)}</p>
+            <p style="color: #28a745;"><strong>Loyalty Discount:</strong> -$${discount.toFixed(2)} (${actualPointsRedeemed} points)</p>
+            <p style="font-size: 18px; font-weight: bold;"><strong>Total Amount:</strong> $${finalAmount.toFixed(2)}</p>
+          ` : `
+            <p style="margin-top: 15px; font-size: 18px;"><strong>Total Amount:</strong> $${finalAmount.toFixed(2)}</p>
+          `}
+        </div>
+
+        <a href="${session.url}"
+           style="display: inline-block; background: #5469d4; color: white; padding: 14px 28px;
+                  text-decoration: none; border-radius: 6px; font-weight: bold;">
+          Pay Now - $${finalAmount.toFixed(2)}
+        </a>
+
+        <p style="color: #666; font-size: 13px; margin-top: 20px;">
+          This link expires in 24 hours.
+        </p>
+
+        <p>Thank you,<br>${appointment.salon_name}</p>
       </div>
+    `;
 
-      <a href="${session.url}"
-         style="display: inline-block; background: #5469d4; color: white; padding: 14px 28px;
-                text-decoration: none; border-radius: 6px; font-weight: bold;">
-        Pay Now - $${finalAmount.toFixed(2)}
-      </a>
-
-      <p style="color: #666; font-size: 13px; margin-top: 20px;">
-        This link expires in 24 hours.
-      </p>
-
-      <p>Thank you,<br>${appointment.salon_name}</p>
-    </div>
-  `;
-
-  await sendEmail(
-    user.email,
-    `Payment Required - ${appointment.salon_name} Appointment`,
-    emailHtml
-  );
+    await sendEmail(
+      user.email,
+      `Payment Required - ${appointment.salon_name} Appointment`,
+      emailHtml
+    );
+  }
 
   return {
     payment_id: result.insertId,
@@ -364,15 +389,12 @@ exports.confirmPayment = async (checkoutSessionId, paymentIntentId) => {
       return;
     }
     
-    // For deposit payments, appointment is already confirmed, just ensure status is correct
-    // For full payments, confirm the appointment
-    if (!isDepositPayment) {
-      await db.query(
-        "UPDATE appointments SET status = 'confirmed' WHERE appointment_id = ?",
-        [resolvedAppointmentId]
-      );
-      console.log(`[Payment] Confirmed appointment ${resolvedAppointmentId} for payment ${paymentRecord.payment_id}`);
-    }
+    // Confirm the appointment after payment (both full payments and deposit payments)
+    await db.query(
+      "UPDATE appointments SET status = 'confirmed' WHERE appointment_id = ?",
+      [resolvedAppointmentId]
+    );
+    console.log(`[Payment] Confirmed appointment ${resolvedAppointmentId} for payment ${paymentRecord.payment_id} (${isDepositPayment ? 'deposit' : 'full'} payment)`);
     
     // Link payment to appointment (this is how we check if appointment is paid)
     await db.query(
@@ -380,6 +402,38 @@ exports.confirmPayment = async (checkoutSessionId, paymentIntentId) => {
       [resolvedAppointmentId, paymentRecord.payment_id]
     );
     console.log(`[Payment] Linked payment ${paymentRecord.payment_id} to appointment ${resolvedAppointmentId}`);
+
+    // Send confirmation email to customer
+    try {
+      const { sendEmail } = require("../../config/mailer");
+      const [[appointment]] = await db.query(
+        `SELECT a.*, s.name as salon_name, s.address as salon_address, u.full_name, u.email 
+         FROM appointments a
+         JOIN salons s ON a.salon_id = s.salon_id
+         JOIN users u ON a.user_id = u.user_id
+         WHERE a.appointment_id = ?`,
+        [resolvedAppointmentId]
+      );
+      
+      if (appointment && appointment.email) {
+        const emailHtml = `
+          <h2>Appointment Confirmed!</h2>
+          <p>Dear ${appointment.full_name || "Customer"},</p>
+          <p>Your payment has been received and your appointment at <b>${appointment.salon_name}</b> is now confirmed.</p>
+          <ul>
+            <li><b>Date & Time:</b> ${new Date(appointment.scheduled_time).toLocaleString()}</li>
+            <li><b>Amount Paid:</b> $${payment?.amount?.toFixed(2) || '0.00'}</li>
+          </ul>
+          <p><b>Salon Address:</b> ${appointment.salon_address || "N/A"}</p>
+          <p>We look forward to seeing you!</p>
+        `;
+        await sendEmail(appointment.email, "Your Appointment is Confirmed!", emailHtml);
+        console.log(`[Payment] Confirmation email sent to ${appointment.email}`);
+      }
+    } catch (emailErr) {
+      console.error("[Payment] Error sending confirmation email:", emailErr);
+      // Don't fail if email fails
+    }
   }
 
   // Process loyalty points if metadata includes them
@@ -780,7 +834,7 @@ exports.getPaymentBySessionId = async (sessionId) => {
   
   return payment;
 };
-exports.createUnifiedCheckout = async (user_id, salon_id, cart_id, points_to_redeem = 0) => {
+exports.createUnifiedCheckout = async (user_id, salon_id, cart_id, points_to_redeem = 0, promo_code = null) => {
   const loyaltyService = require("../loyalty/service");
   // 1. Get user details
   const [[user]] = await db.query(
@@ -905,29 +959,26 @@ exports.createUnifiedCheckout = async (user_id, salon_id, cart_id, points_to_red
     throw new Error("Cart is empty. Please add items to your cart before checkout.");
   }
 
-  // 5. Calculate total and apply loyalty discount
+  // 5. Calculate total and apply discounts
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  let discount = 0;
+  let loyaltyDiscount = 0;
+  let promoDiscount = 0;
   let actualPointsRedeemed = 0;
+  let appliedPromoId = null;
 
+  // Apply loyalty points discount
   if (points_to_redeem > 0) {
     try {
-      // Validate user has enough points
       const userPoints = await loyaltyService.getLoyaltyPoints(user_id, salon_id);
       if (userPoints < points_to_redeem) {
         throw new Error(`You only have ${userPoints} points available`);
       }
-
-      // Calculate discount from points
-      discount = await loyaltyService.calculateDiscount(salon_id, points_to_redeem);
-
-      // Ensure discount doesn't exceed subtotal
-      if (discount > subtotal) {
-        discount = subtotal;
-        // Recalculate points needed for this discount
+      loyaltyDiscount = await loyaltyService.calculateDiscount(salon_id, points_to_redeem);
+      if (loyaltyDiscount > subtotal) {
+        loyaltyDiscount = subtotal;
         const config = await loyaltyService.getLoyaltyConfig(salon_id);
-        actualPointsRedeemed = Math.ceil(discount / config.redeem_rate);
+        actualPointsRedeemed = Math.ceil(loyaltyDiscount / config.redeem_rate);
       } else {
         actualPointsRedeemed = points_to_redeem;
       }
@@ -936,20 +987,39 @@ exports.createUnifiedCheckout = async (user_id, salon_id, cart_id, points_to_red
     }
   }
 
-  const total = subtotal - discount;
+  // Apply promo code discount
+  if (promo_code) {
+    const promoResult = await loyaltyService.validatePromoCode(promo_code, salon_id, subtotal - loyaltyDiscount, user_id);
+    if (promoResult.valid && promoResult.discount) {
+      promoDiscount = promoResult.discount;
+      appliedPromoId = promoResult.promo?.promo_id;
+    } else if (promoResult.error) {
+      throw new Error(promoResult.error);
+    }
+  }
 
-  // 6. Create Stripe line items
-  const lineItems = cartItems.map(item => ({
-    price_data: {
-      currency: "usd",
-      product_data: {
-        name: `${item.item_name}`,
-        description: item.item_description || (item.type === 'service' ? 'Service' : 'Product'),
+  const totalDiscount = loyaltyDiscount + promoDiscount;
+  const total = Math.max(0, subtotal - totalDiscount);
+
+  // 6. Create Stripe line items with discounts applied proportionally
+  const lineItems = cartItems.map(item => {
+    const itemTotal = item.price * item.quantity;
+    const itemDiscountProportion = itemTotal / subtotal;
+    const itemDiscount = totalDiscount * itemDiscountProportion;
+    const discountedPrice = Math.max(0, item.price - (itemDiscount / item.quantity));
+    
+    return {
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: `${item.item_name}`,
+          description: item.item_description || (item.type === 'service' ? 'Service' : 'Product'),
+        },
+        unit_amount: Math.round(discountedPrice * 100),
       },
-      unit_amount: Math.round(item.price * 100),
-    },
-    quantity: item.quantity,
-  }));
+      quantity: item.quantity,
+    };
+  });
 
   // 7. Create Stripe Checkout Session
   const session = await stripe.checkout.sessions.create({
@@ -965,7 +1035,10 @@ exports.createUnifiedCheckout = async (user_id, salon_id, cart_id, points_to_red
       checkout_type: 'unified',
       points_redeemed: actualPointsRedeemed.toString(),
       subtotal: subtotal.toFixed(2),
-      discount: discount.toFixed(2),
+      loyalty_discount: loyaltyDiscount.toFixed(2),
+      promo_discount: promoDiscount.toFixed(2),
+      promo_code: promo_code || '',
+      promo_id: appliedPromoId ? appliedPromoId.toString() : '',
     },
   });
 
@@ -1001,9 +1074,10 @@ exports.createUnifiedCheckout = async (user_id, salon_id, cart_id, points_to_red
         <ul style="margin: 10px 0; padding-left: 20px;">
           ${itemsList}
         </ul>
-        ${discount > 0 ? `
+        ${totalDiscount > 0 ? `
           <p style="margin-top: 15px;"><strong>Subtotal:</strong> $${subtotal.toFixed(2)}</p>
-          <p style="color: #28a745;"><strong>Loyalty Discount:</strong> -$${discount.toFixed(2)} (${actualPointsRedeemed} points)</p>
+          ${loyaltyDiscount > 0 ? `<p style="color: #28a745;"><strong>Loyalty Discount:</strong> -$${loyaltyDiscount.toFixed(2)} (${actualPointsRedeemed} points)</p>` : ''}
+          ${promoDiscount > 0 ? `<p style="color: #28a745;"><strong>Promo Code (${promo_code}):</strong> -$${promoDiscount.toFixed(2)}</p>` : ''}
         ` : ''}
         <p style="font-size: 18px; font-weight: bold; margin-top: 15px;">
           <strong>Total:</strong> $${total.toFixed(2)}
@@ -1034,6 +1108,9 @@ exports.createUnifiedCheckout = async (user_id, salon_id, cart_id, points_to_red
     payment_id: result.insertId,
     payment_link: session.url,
     checkout_session_id: session.id,
+    points_redeemed: actualPointsRedeemed,
+    loyalty_discount: loyaltyDiscount,
+    promo_discount: promoDiscount,
   };
 };
 
@@ -1053,7 +1130,7 @@ exports.confirmUnifiedCheckout = async (checkoutSessionId, paymentIntentId) => {
 
   // 2. Get the checkout session metadata to find cart_id
   const session = await stripe.checkout.sessions.retrieve(checkoutSessionId);
-  const { cart_id, salon_id, user_id, points_redeemed, subtotal } = session.metadata;
+  const { cart_id, salon_id, user_id, points_redeemed, subtotal, promo_id } = session.metadata;
 
   if (!cart_id) {
     console.error("No cart_id in session metadata");
@@ -1207,6 +1284,16 @@ exports.confirmUnifiedCheckout = async (checkoutSessionId, paymentIntentId) => {
     console.error('[Loyalty] Loyalty processing error (non-fatal):', loyaltyErr);
     console.error('[Loyalty] Error stack:', loyaltyErr.stack);
     // Don't fail the whole transaction if loyalty fails
+  }
+
+  // 9. Track promo code usage (so user can't use again)
+  if (promo_id) {
+    try {
+      await loyaltyService.usePromoCode(parseInt(promo_id), parseInt(user_id));
+      console.log(`[Promo] Tracked usage of promo ${promo_id} by user ${user_id}`);
+    } catch (promoErr) {
+      console.error('[Promo] Promo tracking error (non-fatal):', promoErr);
+    }
   }
 };
 
@@ -1507,6 +1594,35 @@ exports.createPayInStorePayment = async (user_id, amount, appointment_id, points
     );
   } catch (notificationError) {
     console.error("Error creating notification:", notificationError);
+  }
+
+  // Send confirmation email for pay-in-store with no deposit (immediate confirmation)
+  if (depositAmount === 0) {
+    try {
+      const { sendEmail } = require("../../config/mailer");
+      const [[userInfo]] = await db.query(
+        "SELECT full_name, email FROM users WHERE user_id = ?",
+        [user_id]
+      );
+      
+      if (userInfo && userInfo.email) {
+        const emailHtml = `
+          <h2>Appointment Confirmed!</h2>
+          <p>Dear ${userInfo.full_name || "Customer"},</p>
+          <p>Your appointment at <b>${appointment.salon_name}</b> is confirmed.</p>
+          <ul>
+            <li><b>Date & Time:</b> ${new Date(appointment.scheduled_time).toLocaleString()}</li>
+            <li><b>Total:</b> $${finalAmount.toFixed(2)}</li>
+          </ul>
+          <p>You will pay when you arrive at the salon.</p>
+          <p>We look forward to seeing you!</p>
+        `;
+        await sendEmail(userInfo.email, "Your Appointment is Confirmed!", emailHtml);
+        console.log(`[Payment] Confirmation email sent to ${userInfo.email} (pay-in-store)`);
+      }
+    } catch (emailErr) {
+      console.error("[Payment] Error sending confirmation email for pay-in-store:", emailErr);
+    }
   }
 
   // Send notification to salon owner

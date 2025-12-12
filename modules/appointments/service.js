@@ -7,7 +7,7 @@ const ALLOWED_STATUSES = new Set([
   "cancelled",
 ]);
 
-function normalizeStatus(status, fallback = "confirmed") {
+function normalizeStatus(status, fallback = "pending") {
   if (!status) return fallback;
   const normalized = String(status).toLowerCase();
   if (normalized === "canceled") return "cancelled";
@@ -69,7 +69,7 @@ async function createAppointment(
   notes,
   status
 ) {
-  const normalizedStatus = normalizeStatus(status, "confirmed");
+  const normalizedStatus = normalizeStatus(status, "pending");
   const sql = `
     INSERT INTO appointments 
       (user_id, salon_id, staff_id, scheduled_time, price, notes, status)

@@ -307,7 +307,8 @@ async function updateSalonBookingSettings(salonId, bookingSettings) {
  */
 async function getSalonLoyaltySettings(salonId) {
   const [rows] = await db.query(
-    `SELECT loyalty_enabled, points_per_visit, redeem_rate FROM salon_settings WHERE salon_id = ?`,
+    `SELECT loyalty_enabled, points_per_visit, points_per_dollar, redeem_rate, min_points_redeem 
+     FROM salon_settings WHERE salon_id = ?`,
     [salonId]
   );
 
@@ -315,14 +316,18 @@ async function getSalonLoyaltySettings(salonId) {
     return {
       loyaltyEnabled: false,
       pointsPerVisit: 10,
-      redeemRate: 0.01,
+      pointsPerDollar: 1,
+      redeemRate: 100,
+      minPointsRedeem: 100,
     };
   }
 
   return {
     loyaltyEnabled: rows[0].loyalty_enabled === 1 || rows[0].loyalty_enabled === true || false,
     pointsPerVisit: rows[0].points_per_visit || 10,
-    redeemRate: parseFloat(rows[0].redeem_rate) || 0.01,
+    pointsPerDollar: parseFloat(rows[0].points_per_dollar) || 1,
+    redeemRate: parseFloat(rows[0].redeem_rate) || 100,
+    minPointsRedeem: parseInt(rows[0].min_points_redeem) || 100,
   };
 }
 
@@ -330,21 +335,25 @@ async function getSalonLoyaltySettings(salonId) {
  * Update salon loyalty settings
  */
 async function updateSalonLoyaltySettings(salonId, loyaltySettings) {
-  const { loyaltyEnabled, pointsPerVisit, redeemRate } = loyaltySettings;
+  const { loyaltyEnabled, pointsPerVisit, pointsPerDollar, redeemRate, minPointsRedeem } = loyaltySettings;
 
   const enabled = loyaltyEnabled === true || loyaltyEnabled === 1 ? 1 : 0;
-  const points = pointsPerVisit || 10;
-  const rate = redeemRate !== undefined && redeemRate !== null ? parseFloat(redeemRate) : 0.01;
+  const pointsVisit = pointsPerVisit || 10;
+  const pointsDollar = pointsPerDollar !== undefined && pointsPerDollar !== null ? parseFloat(pointsPerDollar) : 1;
+  const rate = redeemRate !== undefined && redeemRate !== null ? parseFloat(redeemRate) : 100;
+  const minPoints = minPointsRedeem !== undefined && minPointsRedeem !== null ? parseInt(minPointsRedeem) : 100;
 
   // Use INSERT ... ON DUPLICATE KEY UPDATE to handle race conditions
   await db.query(
-    `INSERT INTO salon_settings (salon_id, loyalty_enabled, points_per_visit, redeem_rate) 
-     VALUES (?, ?, ?, ?)
+    `INSERT INTO salon_settings (salon_id, loyalty_enabled, points_per_visit, points_per_dollar, redeem_rate, min_points_redeem) 
+     VALUES (?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE 
        loyalty_enabled = VALUES(loyalty_enabled),
        points_per_visit = VALUES(points_per_visit),
-       redeem_rate = VALUES(redeem_rate)`,
-    [salonId, enabled, points, rate]
+       points_per_dollar = VALUES(points_per_dollar),
+       redeem_rate = VALUES(redeem_rate),
+       min_points_redeem = VALUES(min_points_redeem)`,
+    [salonId, enabled, pointsVisit, pointsDollar, rate, minPoints]
   );
 
   return { success: true };

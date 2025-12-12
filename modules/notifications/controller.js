@@ -163,10 +163,10 @@ exports.sendPromotionToCustomers = async (req, res) => {
       return res.status(400).json({ error: "Message cannot be empty" });
     }
 
-    // Verify ownership
+    // Verify ownership and get salon name
     const { db } = require("../../config/database");
     const [salons] = await db.query(
-      "SELECT owner_id FROM salons WHERE salon_id = ?",
+      "SELECT owner_id, name FROM salons WHERE salon_id = ?",
       [salon_id]
     );
 
@@ -178,10 +178,14 @@ exports.sendPromotionToCustomers = async (req, res) => {
       return res.status(403).json({ error: "Not authorized to send promotions for this salon" });
     }
 
+    // Prepend salon name to message so customers know who sent it
+    const salonName = salons[0].name;
+    const fullMessage = `[${salonName}] ${message}`;
+
     // Send notifications
     const notificationIds = await notificationService.sendPromotionalOfferNotification(
       user_ids,
-      message
+      fullMessage
     );
 
     res.json({ 
