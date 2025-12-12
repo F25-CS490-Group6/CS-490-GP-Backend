@@ -1,150 +1,115 @@
-//admins/controller.js
 const adminService = require("./service");
 
 exports.getUserEngagement = async (req, res) => {
   try {
-    const stats = await adminService.getUserEngagement();
-    res.json(stats);
+    const engagement = await adminService.getUserEngagement();
+    res.json({ engagement });
   } catch (err) {
-    console.error("Engagement error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Get user engagement error:", err);
+    res.status(500).json({ error: "Failed to get engagement" });
   }
 };
 
 exports.getAppointmentTrends = async (req, res) => {
   try {
-    const { start_date, end_date } = req.query;
-    const trends = await adminService.getAppointmentTrends(start_date || null, end_date || null);
-    res.json(trends);
+    const trends = await adminService.getAppointmentTrends();
+    res.json({ trends });
   } catch (err) {
-    console.error("Trends error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Get appointment trends error:", err);
+    res.status(500).json({ error: "Failed to get trends" });
   }
 };
 
 exports.getSalonRevenues = async (req, res) => {
   try {
-    const { start_date, end_date } = req.query;
-    const revenues = await adminService.getSalonRevenues(start_date || null, end_date || null);
-    res.json(revenues);
+    const revenues = await adminService.getSalonRevenues();
+    res.json({ revenues });
   } catch (err) {
-    console.error("Revenues error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Get salon revenues error:", err);
+    res.status(500).json({ error: "Failed to get revenues" });
   }
 };
 
 exports.getLoyaltyUsage = async (req, res) => {
   try {
-    const usage = await adminService.getLoyaltyUsage();
-    res.json(usage);
+    const loyalty = await adminService.getLoyaltyUsage();
+    res.json({ loyalty });
   } catch (err) {
-    console.error("Loyalty error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Get loyalty usage error:", err);
+    res.status(500).json({ error: "Failed to get loyalty usage" });
   }
 };
 
 exports.getUserDemographics = async (req, res) => {
   try {
     const demographics = await adminService.getUserDemographics();
-    res.json(demographics);
+    res.json({ demographics });
   } catch (err) {
-    console.error("Demographics error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Get user demographics error:", err);
+    res.status(500).json({ error: "Failed to get demographics" });
   }
 };
 
 exports.getCustomerRetention = async (req, res) => {
   try {
     const retention = await adminService.getCustomerRetention();
-    res.json(retention);
+    res.json({ retention });
   } catch (err) {
-    console.error("Retention error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Get customer retention error:", err);
+    res.status(500).json({ error: "Failed to get retention" });
   }
 };
 
 exports.getReports = async (req, res) => {
   try {
-    const { start_date, end_date, format } = req.query;
-    const reports = await adminService.getReports(start_date || null, end_date || null);
-    
-    if (format === 'csv') {
-      const csv = adminService.convertReportsToCSV(reports);
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="reports-${Date.now()}.csv"`);
-      res.send(csv);
-    } else {
-      res.json(reports);
-    }
+    const reports = await adminService.getReports();
+    res.json({ reports });
   } catch (err) {
-    console.error("Reports error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Get reports error:", err);
+    res.status(500).json({ error: "Failed to get reports" });
   }
 };
 
 exports.getSystemLogs = async (req, res) => {
   try {
     const logs = await adminService.getSystemLogs();
-    res.json(logs);
+    res.json({ logs });
   } catch (err) {
-    console.error("Logs error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Get system logs error:", err);
+    res.status(500).json({ error: "Failed to get logs" });
   }
 };
 
-/**
- * Get pending salon registrations
- * GET /api/admins/pending-salons
- */
 exports.getPendingSalons = async (req, res) => {
   try {
-    const salons = await adminService.getPendingSalons();
-    res.json({ salons, count: salons.length });
+    const { salons, count } = await adminService.getPendingSalons();
+    res.json({ salons, count });
   } catch (err) {
     console.error("Get pending salons error:", err);
-    res.status(500).json({ error: err.message || "Failed to get pending salons" });
+    res.status(500).json({ error: "Failed to get pending salons" });
   }
 };
 
-/**
- * Verify salon registration (approve/reject)
- * POST /api/admins/verify/:salon_id
- * Body: { approved: 'approved' | 'rejected' | 'pending' }
- * 
- * As an admin, I want to verify salon registrations so that only legitimate businesses are listed.
- */
 exports.verifySalonRegistration = async (req, res) => {
   try {
     const salonId = req.params.salon_id || req.params.sid;
     const { approved } = req.body;
-    const adminUserId = req.user?.user_id || req.user?.id;
-
-    if (!salonId) {
-      return res.status(400).json({ error: "Salon ID is required" });
-    }
-
-    // Default to 'approved' if not specified
-    const approvalStatus = approved?.toLowerCase() || 'approved';
-
-    const result = await adminService.updateSalonRegistration(
-      parseInt(salonId, 10),
-      approvalStatus,
-      adminUserId
-    );
-
-    res.status(200).json(result);
+    const adminUserId = req.user?.user_id;
+    const result = await adminService.updateSalonRegistration(salonId, approved, adminUserId);
+    res.json(result);
   } catch (err) {
-    console.error("Verify salon registration error:", err);
-    
-    if (err.message === "Salon not found") {
-      return res.status(404).json({ error: err.message });
-    }
-    
-    if (err.message.includes("Invalid approval status")) {
-      return res.status(400).json({ error: err.message });
-    }
-
-    res.status(500).json({ error: err.message || "Failed to verify salon registration" });
+    console.error("Verify salon error:", err);
+    res.status(500).json({ error: err.message || "Failed to verify salon" });
   }
 };
 
+// System health (uptime/errors) - mock for now
+exports.getSystemHealth = async (req, res) => {
+  try {
+    const data = await adminService.getSystemHealth();
+    res.json(data);
+  } catch (err) {
+    console.error("Get system health error:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch system health" });
+  }
+};

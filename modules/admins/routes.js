@@ -17,6 +17,7 @@ router.get("/customer-retention", ...adminOnly, adminController.getCustomerReten
 router.get("/reports", ...adminOnly, adminController.getReports);
 router.get("/system-logs", ...adminOnly, adminController.getSystemLogs);
 router.get("/pending-salons", ...adminOnly, adminController.getPendingSalons);
+router.get("/system-health", ...adminOnly, adminController.getSystemHealth);
 
 // Salon verification route
 // As an admin, I want to verify salon registrations so that only legitimate businesses are listed.
@@ -25,4 +26,3 @@ router.post("/verify/:salon_id", ...adminOnly, adminController.verifySalonRegist
 router.post("/verify/:sid", ...adminOnly, adminController.verifySalonRegistration);
 
 module.exports = router;
-

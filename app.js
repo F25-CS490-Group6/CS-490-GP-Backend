@@ -4,8 +4,10 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
+const Sentry = require("@sentry/node");
 const { verifyAnyToken } = require("./middleware/verifyAnyTokens");
 const checkRoles = require("./middleware/checkRoles");
+const systemHealth = require("./services/systemHealth");
 
 const port = process.env.PORT || 4000;
 const authRoutes = require("./modules/auth/routes");
@@ -35,6 +37,33 @@ const app = express();
 
 // ⭐ NEW — correct swagger setup
 require("./swagger")(app);
+
+// Sentry instrumentation (errors + performance)
+const env = process.env.NODE_ENV || "development";
+const allowSentryDebugRoute =
+  env !== "production" || process.env.SENTRY_DEBUG_ROUTE === "true";
+let sentryDsn;
+if (env === "production") {
+  sentryDsn = process.env.SENTRY_DSN_PROD || process.env.SENTRY_DSN;
+} else if (env === "staging") {
+  sentryDsn = process.env.SENTRY_DSN_STAGING || process.env.SENTRY_DSN;
+} else {
+  sentryDsn = process.env.SENTRY_DSN;
+}
+
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: env,
+    tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || 0.1),
+    profilesSampleRate: 0,
+  });
+  app.use(Sentry.Handlers.requestHandler());
+  app.use(Sentry.Handlers.tracingHandler());
+  console.log(`Sentry initialized for env=${env} using ${sentryDsn.includes('@') ? 'provided DSN' : 'DSN not set'}`);
+} else {
+  console.warn(`Sentry NOT initialized; missing DSN for env=${env}`);
+}
 
 // Support single FRONTEND_URL plus optional comma-separated FRONTEND_URLS for deployments
 const additionalOrigins = (process.env.FRONTEND_URLS || "")
@@ -164,12 +193,33 @@ const reviewController = require("./modules/reviews/controller");
 app.get("/reviews/salon/:salon_id", reviewController.getSalonReviews);
 app.get("/reviews/:salon_id", reviewController.getSalonReviews);
 
+// Non-prod Sentry test route
+if (allowSentryDebugRoute) {
+  app.get("/debug-sentry", () => {
+    throw new Error("Sentry test error");
+  });
+}
+
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
+// Sentry error handler (must be before any other error middleware)
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.errorHandler());
+}
+
 app.use((err, req, res, next) => {
   console.error("Error:", err);
+  systemHealth
+    .recordAppError(err, {
+      route: req.originalUrl,
+      method: req.method,
+      userId: req.user?.user_id,
+    })
+    .catch((logErr) =>
+      console.error("Failed to log error to system health:", logErr)
+    );
   res.status(err.status || 500).json({
     error: err.message || "Internal Server Error",
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),

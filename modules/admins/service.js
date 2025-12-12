@@ -1,5 +1,6 @@
 //admins/service.js
 const { db } = require("../../config/database");
+const systemHealth = require("../../services/systemHealth");
 
 exports.getUserEngagement = async () => {
   // Count users who have logged in within the last 30 days
@@ -265,5 +266,48 @@ exports.updateSalonRegistration = async (salonId, approvalStatus, adminUserId) =
     success: true,
     salon: updated[0],
     message: `Salon registration ${normalizedStatus} successfully`
+  };
+};
+
+// Get platform health (derived from audit activity and DB reachability)
+exports.getSystemHealth = async () => {
+  // DB/uptime checks with rolling tracker
+  const dbCheck = await systemHealth.checkDatabase();
+  const uptimePercent = systemHealth.getUptimePercent();
+
+  // Error trend: use salon_audit activity as a proxy over the last hour
+  const [trendRows] = await db.query(
+    `SELECT DATE_FORMAT(created_at, '%H:%i') AS minute, COUNT(*) AS count
+     FROM salon_audit
+     WHERE created_at >= DATE_SUB(NOW(), INTERVAL 60 MINUTE)
+     GROUP BY minute
+     ORDER BY minute ASC`
+  );
+
+  // Error counts in last 24h
+  const [errorCountRows] = await db.query(
+    `SELECT COUNT(*) AS count
+     FROM salon_audit
+     WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`
+  );
+  const totalErrors24h = Number(errorCountRows?.[0]?.count || 0);
+
+  const totalEventsLastHour = trendRows.reduce((sum, row) => sum + Number(row.count || 0), 0);
+  const errorRatePerMin = totalEventsLastHour / 60;
+
+  return {
+    uptime_percent: uptimePercent,
+    avg_latency_ms: dbCheck.latencyMs,
+    last_up: dbCheck.lastUp,
+    last_down: dbCheck.lastDown,
+    error_rate_per_min: Number(errorRatePerMin.toFixed(2)),
+    total_errors_24h: totalErrors24h,
+    sentry_enabled: Boolean(process.env.SENTRY_DSN),
+    incidents: systemHealth.getIncidents(),
+    recent_errors: await systemHealth.getRecentErrors(10),
+    error_trend: trendRows.map((row) => ({
+      minute: row.minute,
+      count: Number(row.count || 0),
+    })),
   };
 };
