@@ -1068,6 +1068,10 @@ exports.updateProfile = async (req, res) => {
 
     const { full_name, phone, email, gender, date_of_birth } = req.body;
 
+    // Check which optional columns exist
+    const [columns] = await db.query("SHOW COLUMNS FROM users");
+    const columnNames = new Set(columns.map((c) => c.Field));
+
     // Build update query dynamically based on provided fields
     const updates = [];
     const values = [];
@@ -1084,11 +1088,11 @@ exports.updateProfile = async (req, res) => {
       updates.push("email = ?");
       values.push(email);
     }
-    if (gender !== undefined) {
+    if (gender !== undefined && columnNames.has("gender")) {
       updates.push("gender = ?");
       values.push(gender || null);
     }
-    if (date_of_birth !== undefined) {
+    if (date_of_birth !== undefined && columnNames.has("date_of_birth")) {
       updates.push("date_of_birth = ?");
       values.push(date_of_birth || null);
     }
@@ -1106,8 +1110,12 @@ exports.updateProfile = async (req, res) => {
     );
 
     // Fetch updated user data
+    const baseFields = ["user_id", "full_name", "email", "phone", "user_role"];
+    if (columnNames.has("gender")) baseFields.push("gender");
+    if (columnNames.has("date_of_birth")) baseFields.push("date_of_birth");
+
     const [userRows] = await db.query(
-      "SELECT user_id, full_name, email, phone, gender, date_of_birth, user_role FROM users WHERE user_id = ?",
+      `SELECT ${baseFields.join(", ")} FROM users WHERE user_id = ?`,
       [userId]
     );
 

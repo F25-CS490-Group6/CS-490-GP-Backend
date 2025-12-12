@@ -22,9 +22,29 @@ async function createUser(full_name, phone, email, role = "customer", options = 
   // Let MySQL auto-increment the user_id (integer)
   const { gender = null, birth_year = null } = options;
 
+  // Only include optional demographic columns if they exist in the schema
+  const [columns] = await db.query("SHOW COLUMNS FROM users");
+  const columnNames = new Set(columns.map((c) => c.Field));
+
+  const fields = ["full_name", "phone", "email", "user_role"];
+  const placeholders = ["?", "?", "?", "?"];
+  const values = [full_name, phone, email, role];
+
+  if (columnNames.has("gender")) {
+    fields.push("gender");
+    placeholders.push("?");
+    values.push(gender);
+  }
+
+  if (columnNames.has("birth_year")) {
+    fields.push("birth_year");
+    placeholders.push("?");
+    values.push(birth_year);
+  }
+
   const [userResult] = await db.query(
-    "INSERT INTO users (full_name, phone, email, user_role, gender, birth_year) VALUES (?, ?, ?, ?, ?, ?)",
-    [full_name, phone, email, role, gender, birth_year]
+    `INSERT INTO users (${fields.join(", ")}) VALUES (${placeholders.join(", ")})`,
+    values
   );
   return userResult.insertId;
 }

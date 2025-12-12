@@ -1517,3 +1517,38 @@ exports.updateSalonOperatingPolicies = async (req, res) => {
     res.status(500).json({ error: "Failed to update operating policies" });
   }
 };
+
+/**
+ * DELETE /api/salons/:salon_id
+ * Remove a salon (admin only)
+ */
+exports.deleteSalon = async (req, res) => {
+  try {
+    const { salon_id } = req.params;
+    const userRole = req.user?.role || req.user?.user_role;
+
+    if (!salon_id) {
+      return res.status(400).json({ error: "Salon ID is required" });
+    }
+
+    if (userRole !== "admin") {
+      return res.status(403).json({ error: "Only admins can delete salons" });
+    }
+
+    const [salons] = await db.query(
+      "SELECT salon_id FROM salons WHERE salon_id = ?",
+      [salon_id]
+    );
+
+    if (!salons || salons.length === 0) {
+      return res.status(404).json({ error: "Salon not found" });
+    }
+
+    await db.query("DELETE FROM salons WHERE salon_id = ?", [salon_id]);
+
+    return res.json({ message: "Salon deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting salon:", error);
+    return res.status(500).json({ error: "Failed to delete salon" });
+  }
+};

@@ -134,5 +134,6 @@ router.get("/public/:salon_id/reviews", reviewController.getSalonReviews);
 // Salon settings endpoints
 router.get("/:salon_id", verifyAnyToken, salonController.getSalonById);
 router.put("/:salon_id", verifyAnyToken, upload.any(), salonController.updateSalon);
+router.delete("/:salon_id", verifyAnyToken, salonController.deleteSalon);
 
 module.exports = router;

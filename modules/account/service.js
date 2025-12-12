@@ -6,20 +6,27 @@ const userService = require("../users/service");
  * Get account settings for a user
  */
 async function getAccountSettings(userId) {
+  // Some deployments may not have optional columns; build a safe select list
+  const [columns] = await db.query("SHOW COLUMNS FROM users");
+  const columnNames = new Set(columns.map((c) => c.Field));
+
+  const baseFields = ["user_id", "full_name", "email", "phone"];
+  const optionalFields = [
+    "gender",
+    "birth_year",
+    "profile_pic",
+    "subscription_plan",
+    "created_at",
+    "updated_at",
+  ];
+
+  const selectFields = [
+    ...baseFields,
+    ...optionalFields.filter((f) => columnNames.has(f)),
+  ].join(", ");
+
   const [rows] = await db.query(
-    `SELECT 
-      user_id,
-      full_name,
-      email,
-      phone,
-      gender,
-      birth_year,
-      profile_pic,
-      subscription_plan,
-      created_at,
-      updated_at
-    FROM users
-    WHERE user_id = ?`,
+    `SELECT ${selectFields} FROM users WHERE user_id = ?`,
     [userId]
   );
 
@@ -33,12 +40,13 @@ async function getAccountSettings(userId) {
     full_name: user.full_name,
     email: user.email,
     phone: user.phone,
-    gender: user.gender || null,
-    birth_year: user.birth_year || null,
-    profile_pic: user.profile_pic,
-    subscription_plan: user.subscription_plan || 'free',
-    created_at: user.created_at,
-    updated_at: user.updated_at,
+    gender: "gender" in user ? user.gender || null : null,
+    birth_year: "birth_year" in user ? user.birth_year || null : null,
+    profile_pic: "profile_pic" in user ? user.profile_pic : null,
+    subscription_plan:
+      "subscription_plan" in user ? user.subscription_plan || "free" : "free",
+    created_at: "created_at" in user ? user.created_at : null,
+    updated_at: "updated_at" in user ? user.updated_at : null,
   };
 }
 
@@ -46,7 +54,16 @@ async function getAccountSettings(userId) {
  * Update account profile (name, email, phone, profile_pic)
  */
 async function updateAccountProfile(userId, updates) {
-  const allowedFields = ["full_name", "email", "phone", "profile_pic", "gender", "birth_year"];
+  const [columns] = await db.query("SHOW COLUMNS FROM users");
+  const columnNames = new Set(columns.map((c) => c.Field));
+  const allowedFields = [
+    "full_name",
+    "email",
+    "phone",
+    "profile_pic",
+    "gender",
+    "birth_year",
+  ].filter((field) => columnNames.has(field));
   const fields = [];
   const values = [];
 
