@@ -62,8 +62,17 @@ exports.getCustomerRetention = async (req, res) => {
 
 exports.getReports = async (req, res) => {
   try {
-    const reports = await adminService.getReports();
-    res.json({ reports });
+    const { start_date, end_date, format } = req.query;
+    const reports = await adminService.getReports(start_date || null, end_date || null);
+
+    if (format === 'csv') {
+      const csv = adminService.convertReportsToCSV(reports);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="reports-${Date.now()}.csv"`);
+      res.send(csv);
+    } else {
+      res.json({ reports });
+    }
   } catch (err) {
     console.error("Get reports error:", err);
     res.status(500).json({ error: "Failed to get reports" });

@@ -1,6 +1,7 @@
 //admins/service.js
 const { db } = require("../../config/database");
-const systemHealth = require("../../services/systemHealth");
+const { s3Client, BUCKET_NAME, isS3Configured } = require("../../middleware/s3Upload");
+const { HeadBucketCommand } = require("@aws-sdk/client-s3");
 
 exports.getUserEngagement = async () => {
   // Count users who have logged in within the last 30 days
@@ -315,7 +316,7 @@ exports.updateSalonRegistration = async (salonId, approvalStatus, adminUserId) =
   }
 
   // Update approved status
-  const [result] = await db.query(
+  await db.query(
     `UPDATE salons SET approved = ? WHERE salon_id = ?`,
     [normalizedStatus, salonId]
   );
@@ -374,111 +375,172 @@ exports.updateSalonRegistration = async (salonId, approvalStatus, adminUserId) =
 
 /**
  * Get comprehensive system health metrics
+ * Returns data formatted for the frontend reliability dashboard
  */
 exports.getSystemHealth = async () => {
-  const healthMetrics = {
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    checks: {}
+  const healthData = {
+    uptime_percent: 99.9,
+    avg_latency_ms: 0,
+    error_rate_per_min: 0,
+    total_errors_24h: 0,
+    last_up: new Date().toISOString(),
+    last_down: null,
+    sentry_enabled: !!process.env.SENTRY_DSN,
+    incidents: [],
+    recent_errors: [],
+    error_trend: []
   };
 
   try {
-    // Database connectivity check with timing
+    // Database connectivity check with latency monitoring
     const dbStart = Date.now();
-    const [dbCheck] = await db.query('SELECT 1 AS status');
-    const dbLatency = Date.now() - dbStart;
+    await db.query('SELECT 1');
+    healthData.avg_latency_ms = Date.now() - dbStart;
 
-    healthMetrics.checks.database = {
-      status: dbCheck[0]?.status === 1 ? 'healthy' : 'degraded',
-      latency_ms: dbLatency,
-      connected: true
-    };
-  } catch (err) {
-    healthMetrics.status = 'unhealthy';
-    healthMetrics.checks.database = {
-      status: 'unhealthy',
-      connected: false,
-      error: err.message
-    };
-  }
-
-  try {
-    // Check database table accessibility
-    const [tableCheck] = await db.query(`
-      SELECT COUNT(*) AS table_count
-      FROM information_schema.tables
-      WHERE table_schema = DATABASE()
+    // Get error statistics from last 24 hours
+    const [errorStats] = await db.query(`
+      SELECT
+        COUNT(*) AS total_errors,
+        COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 1 END) AS errors_1h
+      FROM salon_audit
+      WHERE event_type IN ('REJECTED', 'BLOCKED')
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
     `);
 
-    healthMetrics.checks.database_tables = {
-      status: 'healthy',
-      table_count: tableCheck[0]?.table_count || 0
-    };
-  } catch (err) {
-    healthMetrics.checks.database_tables = {
-      status: 'degraded',
-      error: err.message
-    };
-  }
+    healthData.total_errors_24h = errorStats[0]?.total_errors || 0;
+    healthData.error_rate_per_min = ((errorStats[0]?.errors_1h || 0) / 60).toFixed(2);
 
-  try {
-    // Get recent error rate from audit logs
-    const [errorRate] = await db.query(`
+    // Calculate uptime percentage based on error rate
+    const [uptimeData] = await db.query(`
       SELECT
         COUNT(*) AS total_events,
-        SUM(CASE WHEN event_type IN ('REJECTED', 'BLOCKED') THEN 1 ELSE 0 END) AS error_events
+        SUM(CASE WHEN event_type IN ('REJECTED', 'BLOCKED') THEN 1 ELSE 0 END) AS failed_events
       FROM salon_audit
-      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
     `);
 
-    const total = errorRate[0]?.total_events || 0;
-    const errors = errorRate[0]?.error_events || 0;
-    const errorPercentage = total > 0 ? (errors / total * 100).toFixed(2) : 0;
+    const totalEvents = uptimeData[0]?.total_events || 0;
+    const failedEvents = uptimeData[0]?.failed_events || 0;
+    healthData.uptime_percent = totalEvents > 0
+      ? parseFloat((((totalEvents - failedEvents) / totalEvents) * 100).toFixed(3))
+      : 99.999;
 
-    healthMetrics.checks.error_rate = {
-      status: errorPercentage < 5 ? 'healthy' : errorPercentage < 15 ? 'degraded' : 'unhealthy',
-      error_percentage: parseFloat(errorPercentage),
-      total_events_1h: total,
-      error_events_1h: errors
-    };
-  } catch (err) {
-    healthMetrics.checks.error_rate = {
-      status: 'unknown',
-      error: err.message
-    };
-  }
-
-  try {
-    // Check active connections and load
-    const [connections] = await db.query(`
+    // Get recent errors (last 10)
+    const [recentErrors] = await db.query(`
       SELECT
-        (SELECT COUNT(*) FROM appointments WHERE status = 'scheduled') AS scheduled_appointments,
-        (SELECT COUNT(*) FROM users WHERE updated_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)) AS active_users_24h,
-        (SELECT COUNT(*) FROM payments WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)) AS payments_1h
+        audit_id AS id,
+        event_type AS service,
+        event_note AS message,
+        created_at AS timestamp,
+        CASE
+          WHEN event_type = 'BLOCKED' THEN 'critical'
+          WHEN event_type = 'REJECTED' THEN 'warn'
+          ELSE 'error'
+        END AS severity
+      FROM salon_audit
+      WHERE event_type IN ('REJECTED', 'BLOCKED')
+      ORDER BY created_at DESC
+      LIMIT 10
     `);
 
-    healthMetrics.checks.system_load = {
-      status: 'healthy',
-      scheduled_appointments: connections[0]?.scheduled_appointments || 0,
-      active_users_24h: connections[0]?.active_users_24h || 0,
-      payments_last_hour: connections[0]?.payments_1h || 0
-    };
+    healthData.recent_errors = recentErrors.map(err => ({
+      id: err.id,
+      service: err.service.toLowerCase(),
+      message: err.message || 'Error occurred',
+      timestamp: err.timestamp,
+      severity: err.severity
+    }));
+
+    // Get error trend for last hour (grouped by minute)
+    const [errorTrend] = await db.query(`
+      SELECT
+        DATE_FORMAT(created_at, '%H:%i') AS minute,
+        COUNT(*) AS count
+      FROM salon_audit
+      WHERE event_type IN ('REJECTED', 'BLOCKED')
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+      GROUP BY DATE_FORMAT(created_at, '%H:%i')
+      ORDER BY minute DESC
+      LIMIT 60
+    `);
+
+    healthData.error_trend = errorTrend.map(trend => ({
+      minute: trend.minute,
+      count: trend.count
+    }));
+
+    // Get active incidents (critical errors in last hour)
+    const [incidents] = await db.query(`
+      SELECT
+        audit_id AS id,
+        event_type AS title,
+        event_note AS summary,
+        created_at AS started_at,
+        NULL AS resolved_at,
+        'open' AS status,
+        CASE
+          WHEN event_type = 'BLOCKED' THEN 'critical'
+          ELSE 'high'
+        END AS severity
+      FROM salon_audit
+      WHERE event_type IN ('BLOCKED')
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+      ORDER BY created_at DESC
+      LIMIT 5
+    `);
+
+    healthData.incidents = incidents.map(inc => ({
+      id: inc.id,
+      title: inc.title,
+      summary: inc.summary || 'System incident detected',
+      started_at: inc.started_at,
+      resolved_at: inc.resolved_at,
+      status: inc.status,
+      severity: inc.severity
+    }));
+
+    // AWS S3 health check
+    if (isS3Configured()) {
+      try {
+        const s3Start = Date.now();
+        const command = new HeadBucketCommand({ Bucket: BUCKET_NAME });
+        await s3Client.send(command);
+        const s3Latency = Date.now() - s3Start;
+
+        // Add S3 info to healthData (optional, for extended monitoring)
+        healthData.s3_status = {
+          accessible: true,
+          latency_ms: s3Latency,
+          bucket: BUCKET_NAME
+        };
+      } catch (s3Err) {
+        console.error('S3 health check error:', s3Err);
+        healthData.recent_errors.push({
+          id: Date.now(),
+          service: 's3',
+          message: `S3 bucket ${BUCKET_NAME} not accessible: ${s3Err.message}`,
+          timestamp: new Date().toISOString(),
+          severity: 'warn'
+        });
+      }
+    }
+
   } catch (err) {
-    healthMetrics.checks.system_load = {
-      status: 'unknown',
-      error: err.message
-    };
+    console.error('System health check error:', err);
+    healthData.last_down = new Date().toISOString();
+    healthData.uptime_percent = 0;
+
+    // Add critical error to recent errors
+    healthData.recent_errors.unshift({
+      id: Date.now(),
+      service: 'database',
+      message: err.message,
+      timestamp: new Date().toISOString(),
+      severity: 'critical'
+    });
   }
 
-  // Determine overall health status
-  const statuses = Object.values(healthMetrics.checks).map(check => check.status);
-  if (statuses.includes('unhealthy')) {
-    healthMetrics.status = 'unhealthy';
-  } else if (statuses.includes('degraded')) {
-    healthMetrics.status = 'degraded';
-  }
-
-  return healthMetrics;
+  return healthData;
 };
 
 /**
