@@ -60,6 +60,16 @@ exports.getRetentionSummary = async (req, res) => {
   }
 };
 
+exports.getDailyActivity = async (req, res) => {
+  try {
+    const activity = await adminService.getDailyActivity();
+    res.json({ activity });
+  } catch (err) {
+    console.error("Get daily activity error:", err);
+    res.status(500).json({ error: "Failed to get daily activity" });
+  }
+};
+
 exports.getUserDemographics = async (req, res) => {
   try {
     const demographics = await adminService.getUserDemographics();

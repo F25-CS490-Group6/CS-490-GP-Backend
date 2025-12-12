@@ -365,6 +365,20 @@ exports.getRetentionSummary = async () => {
   };
 };
 
+exports.getDailyActivity = async () => {
+  const [rows] = await db.query(
+    `SELECT DATE(scheduled_time) AS day, COUNT(*) AS sessions
+     FROM appointments
+     WHERE scheduled_time >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+     GROUP BY day
+     ORDER BY day`
+  );
+  return rows.map((r) => ({
+    day: r.day,
+    sessions: Number(r.sessions || 0),
+  }));
+};
+
 exports.getUserDemographics = async () => {
   let gender = [];
   let age = [];
