@@ -1324,13 +1324,16 @@ exports.createPayInStorePayment = async (user_id, amount, appointment_id, points
   // Get deposit percentage from salon settings if not provided
   let depositAmount = deposit_amount;
   if (depositAmount === null || depositAmount === undefined) {
-    const [[settings]] = await db.query(
-      `SELECT deposit_percentage FROM salon_settings WHERE salon_id = ?`,
-      [resolvedSalonId]
-    );
-    const depositPercentage = settings?.deposit_percentage ? parseFloat(settings.deposit_percentage) : 0;
-    if (depositPercentage > 0) {
-      depositAmount = (finalAmount * depositPercentage) / 100;
+    const [settingsColumns] = await db.query("SHOW COLUMNS FROM salon_settings");
+    const hasDepositColumn = settingsColumns.some(col => col.Field === 'deposit_percentage');
+
+    if (hasDepositColumn) {
+      const [[settings]] = await db.query(
+        `SELECT deposit_percentage FROM salon_settings WHERE salon_id = ?`,
+        [resolvedSalonId]
+      );
+      const depositPercentage = settings?.deposit_percentage ? parseFloat(settings.deposit_percentage) : 0;
+      depositAmount = depositPercentage > 0 ? (finalAmount * depositPercentage) / 100 : 0;
     } else {
       depositAmount = 0;
     }

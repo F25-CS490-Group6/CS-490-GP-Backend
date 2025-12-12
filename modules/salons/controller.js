@@ -672,16 +672,26 @@ exports.getSalonByIdPublic = async (req, res) => {
     const salon = salons[0];
     // owner_id is now included in the SELECT query above, so it should be in salon object
 
-    // Get all settings from salon_settings
+    // Get all settings from salon_settings (guard optional columns)
+    const [settingsColumns] = await db.query("SHOW COLUMNS FROM salon_settings");
+    const settingsColumnNames = settingsColumns.map(col => col.Field);
+    const hasSettingsColumn = (colName) => settingsColumnNames.includes(colName);
+    const settingsSelectFields = [
+      'amenities',
+      'business_hours',
+      'cancellation_policy',
+      'refund_policy',
+      'late_arrival_policy',
+      'no_show_policy'
+    ];
+    const hasDepositPercentage = hasSettingsColumn('deposit_percentage');
+    if (hasDepositPercentage) {
+      settingsSelectFields.push('deposit_percentage');
+    }
+
     const [settings] = await db.query(
       `SELECT 
-        amenities, 
-        business_hours,
-        cancellation_policy,
-        refund_policy,
-        late_arrival_policy,
-        no_show_policy,
-        deposit_percentage
+        ${settingsSelectFields.join(', ')}
       FROM salon_settings WHERE salon_id = ?`,
       [salon_id]
     );
@@ -728,7 +738,9 @@ exports.getSalonByIdPublic = async (req, res) => {
         refundPolicy: setting.refund_policy || null,
         lateArrivalPolicy: setting.late_arrival_policy || null,
         noShowPolicy: setting.no_show_policy || null,
-        depositPercentage: setting.deposit_percentage ? parseFloat(setting.deposit_percentage) : 0,
+        depositPercentage: hasDepositPercentage && setting.deposit_percentage !== undefined && setting.deposit_percentage !== null
+          ? parseFloat(setting.deposit_percentage) || 0
+          : 0,
       };
     }
 
