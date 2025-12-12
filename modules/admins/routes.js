@@ -13,6 +13,7 @@ router.get("/appointment-trends", ...adminOnly, adminController.getAppointmentTr
 router.get("/salon-revenues", ...adminOnly, adminController.getSalonRevenues);
 router.get("/loyalty-usage", ...adminOnly, adminController.getLoyaltyUsage);
 router.get("/loyalty-summary", ...adminOnly, adminController.getLoyaltySummary);
+router.get("/retention-summary", ...adminOnly, adminController.getRetentionSummary);
 router.get("/user-demographics", ...adminOnly, adminController.getUserDemographics);
 router.get("/customer-retention", ...adminOnly, adminController.getCustomerRetention);
 router.get("/reports", ...adminOnly, adminController.getReports);

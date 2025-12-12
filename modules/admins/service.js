@@ -255,6 +255,116 @@ exports.getLoyaltySummary = async () => {
   };
 };
 
+exports.getRetentionSummary = async () => {
+  // Active customers last 90d
+  const [[active90]] = await db.query(
+    `SELECT COUNT(DISTINCT user_id) AS active_customers_90d
+     FROM appointments
+     WHERE scheduled_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)`
+  );
+
+  // Returning customers (>=2 appts last 90d)
+  const [[returning90]] = await db.query(
+    `SELECT COUNT(*) AS returning_customers_90d
+     FROM (
+       SELECT user_id
+       FROM appointments
+       WHERE scheduled_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+       GROUP BY user_id
+       HAVING COUNT(*) >= 2
+     ) t`
+  );
+
+  // New customers (first visit in last 30d and 90d)
+  const [[new30]] = await db.query(
+    `SELECT COUNT(*) AS new_customers_30d
+     FROM (
+       SELECT user_id, MIN(scheduled_time) AS first_visit
+       FROM appointments
+       GROUP BY user_id
+       HAVING first_visit >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+     ) t`
+  );
+  const [[new90]] = await db.query(
+    `SELECT COUNT(*) AS new_customers_90d
+     FROM (
+       SELECT user_id, MIN(scheduled_time) AS first_visit
+       FROM appointments
+       GROUP BY user_id
+       HAVING first_visit >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+     ) t`
+  );
+
+  // Total and repeat bookings (30d)
+  const [[totalBookings30]] = await db.query(
+    `SELECT COUNT(*) AS total_bookings_30d
+     FROM appointments
+     WHERE scheduled_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
+  );
+  const [[repeatBookings30]] = await db.query(
+    `SELECT COUNT(*) AS repeat_bookings_30d
+     FROM appointments a
+     WHERE a.scheduled_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+       AND EXISTS (
+         SELECT 1 FROM appointments p
+         WHERE p.user_id = a.user_id
+           AND p.scheduled_time < a.scheduled_time
+       )`
+  );
+
+  // Churn risk: last visit >60d ago
+  const [[churnRisk]] = await db.query(
+    `SELECT COUNT(*) AS churn_risk_60d
+     FROM (
+       SELECT user_id, MAX(scheduled_time) AS last_visit
+       FROM appointments
+       GROUP BY user_id
+       HAVING last_visit < DATE_SUB(NOW(), INTERVAL 60 DAY)
+     ) t`
+  );
+
+  // Weekly trend (last 12 weeks): new vs returning users
+  const [trendRows] = await db.query(
+    `WITH firsts AS (
+       SELECT user_id, MIN(scheduled_time) AS first_visit
+       FROM appointments
+       GROUP BY user_id
+     )
+     SELECT
+       YEARWEEK(a.scheduled_time, 1) AS yw,
+       DATE_FORMAT(DATE_SUB(a.scheduled_time, INTERVAL WEEKDAY(a.scheduled_time) DAY), '%Y-%m-%d') AS week_start,
+       COUNT(DISTINCT CASE WHEN f.first_visit >= DATE_SUB(a.scheduled_time, INTERVAL WEEKDAY(a.scheduled_time) DAY)
+                            AND f.first_visit < DATE_ADD(DATE_SUB(a.scheduled_time, INTERVAL WEEKDAY(a.scheduled_time) DAY), INTERVAL 7 DAY)
+                       THEN a.user_id END) AS new_users,
+       COUNT(DISTINCT CASE WHEN f.first_visit < DATE_SUB(a.scheduled_time, INTERVAL WEEKDAY(a.scheduled_time) DAY)
+                       THEN a.user_id END) AS returning_users
+     FROM appointments a
+     JOIN firsts f ON f.user_id = a.user_id
+     WHERE a.scheduled_time >= DATE_SUB(NOW(), INTERVAL 12 WEEK)
+     GROUP BY yw, week_start
+     ORDER BY yw DESC
+     LIMIT 12`
+  );
+  const trend = trendRows
+    .map((row) => ({
+      week_start: row.week_start,
+      new_users: Number(row.new_users || 0),
+      returning_users: Number(row.returning_users || 0),
+    }))
+    .reverse();
+
+  return {
+    active_customers_90d: Number(active90?.active_customers_90d || 0),
+    returning_customers_90d: Number(returning90?.returning_customers_90d || 0),
+    new_customers_30d: Number(new30?.new_customers_30d || 0),
+    new_customers_90d: Number(new90?.new_customers_90d || 0),
+    total_bookings_30d: Number(totalBookings30?.total_bookings_30d || 0),
+    repeat_bookings_30d: Number(repeatBookings30?.repeat_bookings_30d || 0),
+    churn_risk_60d: Number(churnRisk?.churn_risk_60d || 0),
+    trend,
+  };
+};
+
 exports.getUserDemographics = async () => {
   let gender = [];
   let age = [];

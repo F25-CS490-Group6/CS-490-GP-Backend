@@ -50,6 +50,16 @@ exports.getLoyaltySummary = async (req, res) => {
   }
 };
 
+exports.getRetentionSummary = async (req, res) => {
+  try {
+    const summary = await adminService.getRetentionSummary();
+    res.json({ retention: summary });
+  } catch (err) {
+    console.error("Get retention summary error:", err);
+    res.status(500).json({ error: "Failed to get retention summary" });
+  }
+};
+
 exports.getUserDemographics = async (req, res) => {
   try {
     const demographics = await adminService.getUserDemographics();
