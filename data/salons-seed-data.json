@@ -1,0 +1,278 @@
+{
+  "salons": [
+    {
+      "owner": {
+        "full_name": "Sophia Martinez",
+        "email": "sophia@luxebeauty.com",
+        "password": "Luxe2024!",
+        "phone": "2015551234"
+      },
+      "salon": {
+        "salon_name": "Luxe Beauty Studio",
+        "address": "456 Madison Avenue",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10022",
+        "country": "United States",
+        "phone": "2015551234",
+        "email": "info@luxebeauty.com",
+        "description": "Experience luxury beauty services in the heart of Manhattan. Our expert stylists and aestheticians provide premium hair, nail, and skincare treatments in an elegant, modern setting.",
+        "website": "https://luxebeauty.com",
+        "profile_picture": "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?q=80&w=2069&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Tuesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Thursday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Friday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Saturday": { "enabled": true, "start": "08:00", "end": "19:00" },
+          "Sunday": { "enabled": true, "start": "10:00", "end": "18:00" }
+        },
+        "amenities": ["WiFi", "Complimentary Beverages", "Magazines", "Luxury Products", "Private Rooms"],
+        "cancellationPolicy": "24-hour cancellation notice required. Late cancellations may incur a 50% fee.",
+        "depositPercentage": 20,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 50,
+        "pointsPerDollar": 2,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 500
+      },
+      "services": [
+        { "name": "Signature Haircut & Style", "category": "Haircuts", "duration": 60, "price": 85.00, "description": "Precision cut with personalized styling consultation" },
+        { "name": "Balayage Highlights", "category": "Hair Color", "duration": 180, "price": 245.00, "description": "Hand-painted natural-looking highlights" },
+        { "name": "Keratin Smoothing Treatment", "category": "Hair Treatments", "duration": 120, "price": 295.00, "description": "Professional smoothing treatment for frizz-free hair" },
+        { "name": "Luxury Facial", "category": "Basic Facials", "duration": 75, "price": 135.00, "description": "Deep cleansing and rejuvenating facial treatment" },
+        { "name": "Gel Manicure", "category": "Manicure", "duration": 45, "price": 55.00, "description": "Long-lasting gel polish manicure" },
+        { "name": "Deluxe Pedicure", "category": "Pedicure", "duration": 60, "price": 75.00, "description": "Spa pedicure with massage and premium products" },
+        { "name": "Bridal Package", "category": "Makeup", "duration": 180, "price": 450.00, "description": "Complete bridal hair and makeup package" },
+        { "name": "Eyebrow Shaping & Tint", "category": "Eyebrows", "duration": 30, "price": 45.00, "description": "Professional brow shaping and tinting" }
+      ],
+      "products": [
+        { "name": "Olaplex Hair Treatment Set", "category": "Hair", "description": "Professional bond-building treatment system", "price": 85.00, "stock": 25 },
+        { "name": "Moroccanoil Intense Hydrating Mask", "category": "Hair", "description": "Deep conditioning treatment for all hair types", "price": 48.00, "stock": 30 },
+        { "name": "Luxury Face Serum", "category": "Skin", "description": "Anti-aging vitamin C serum", "price": 95.00, "stock": 20 },
+        { "name": "Premium Hand Cream", "category": "Skin", "description": "Intensive moisture therapy hand cream", "price": 32.00, "stock": 40 },
+        { "name": "OPI Nail Polish Collection", "category": "Nails", "description": "Professional nail lacquer in various shades", "price": 12.00, "stock": 100 }
+      ],
+      "staff": [
+        { "name": "Isabella Chen", "role": "Hair Stylist", "phone": "2015552001", "email": "isabella@luxebeauty.com", "specialization": "Hair Coloring, Balayage, Updos" },
+        { "name": "Marcus Johnson", "role": "Colorist", "phone": "2015552002", "email": "marcus@luxebeauty.com", "specialization": "Color Correction, Highlights, Fashion Colors" },
+        { "name": "Amara Thompson", "role": "Nail Artist", "phone": "2015552003", "email": "amara@luxebeauty.com", "specialization": "Gel Manicures, Nail Art, Spa Pedicures" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?q=80&w=2069", "type": "cover", "caption": "Luxe Beauty Studio - Luxury Manhattan Salon", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069", "type": "interior", "caption": "Elegant styling stations", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1559599238-1c999946dd90?q=80&w=2069", "type": "interior", "caption": "Premium nail salon area", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=2069", "type": "gallery", "caption": "Expert hair coloring", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Alexander Brooks",
+        "email": "alex@urbansalon.com",
+        "password": "Urban2024!",
+        "phone": "3105554567"
+      },
+      "salon": {
+        "salon_name": "Urban Edge Salon",
+        "address": "789 Sunset Boulevard",
+        "city": "Los Angeles",
+        "state": "CA",
+        "zip": "90028",
+        "country": "United States",
+        "phone": "3105554567",
+        "email": "hello@urbansalon.com",
+        "description": "Contemporary salon specializing in cutting-edge styles and modern techniques. From trendy cuts to vibrant color, we bring your hair vision to life with expert precision and creativity.",
+        "website": "https://urbanedgesalon.com",
+        "profile_picture": "https://images.unsplash.com/photo-1599351431613-4e4446da4e14?q=80&w=2071&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": false, "start": "09:00", "end": "18:00" },
+          "Tuesday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Thursday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Friday": { "enabled": true, "start": "10:00", "end": "21:00" },
+          "Saturday": { "enabled": true, "start": "09:00", "end": "19:00" },
+          "Sunday": { "enabled": true, "start": "10:00", "end": "17:00" }
+        },
+        "amenities": ["WiFi", "Complimentary Coffee & Tea", "Charging Stations", "Music Playlist", "Street Parking"],
+        "cancellationPolicy": "Please cancel at least 12 hours in advance. Same-day cancellations will be charged 25% of service cost.",
+        "depositPercentage": 0,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 25,
+        "pointsPerDollar": 1,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 250
+      },
+      "services": [
+        { "name": "Modern Cut & Style", "category": "Haircuts", "duration": 45, "price": 65.00, "description": "Contemporary haircut with styling" },
+        { "name": "Creative Color", "category": "Hair Color", "duration": 150, "price": 195.00, "description": "Fashion colors and creative coloring techniques" },
+        { "name": "Hair Gloss Treatment", "category": "Hair Treatments", "duration": 45, "price": 75.00, "description": "Shine-enhancing glossing treatment" },
+        { "name": "Men's Grooming Package", "category": "Haircuts", "duration": 60, "price": 80.00, "description": "Cut, beard trim, and styling" },
+        { "name": "Beard Sculpting", "category": "Beard Trim", "duration": 30, "price": 35.00, "description": "Professional beard shaping and grooming" },
+        { "name": "Express Blowout", "category": "Hair Treatments", "duration": 30, "price": 45.00, "description": "Quick styling blowout" },
+        { "name": "Root Touch-Up", "category": "Hair Color", "duration": 90, "price": 95.00, "description": "Root color refresh" },
+        { "name": "Teen Cut", "category": "Haircuts", "duration": 30, "price": 45.00, "description": "Haircut for ages 13-17" }
+      ],
+      "products": [
+        { "name": "Redken Extreme Shampoo & Conditioner", "category": "Hair", "description": "Strengthening hair care duo", "price": 55.00, "stock": 35 },
+        { "name": "Texturizing Spray", "category": "Hair", "description": "Beach waves styling spray", "price": 28.00, "stock": 45 },
+        { "name": "Heat Protection Spray", "category": "Hair", "description": "Thermal protection for styling", "price": 32.00, "stock": 40 },
+        { "name": "Beard Oil", "category": "Other", "description": "Premium conditioning beard oil", "price": 25.00, "stock": 30 },
+        { "name": "Styling Pomade", "category": "Hair", "description": "Strong hold styling pomade", "price": 22.00, "stock": 50 }
+      ],
+      "staff": [
+        { "name": "Dylan Martinez", "role": "Hair Stylist", "phone": "3105554501", "email": "dylan@urbansalon.com", "specialization": "Modern Cuts, Men's Grooming, Fades" },
+        { "name": "Jade Williams", "role": "Colorist", "phone": "3105554502", "email": "jade@urbansalon.com", "specialization": "Creative Colors, Balayage, Vivid Colors" },
+        { "name": "Cameron Lee", "role": "Barber", "phone": "3105554503", "email": "cameron@urbansalon.com", "specialization": "Beard Grooming, Classic Cuts, Hot Towel Shaves" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1599351431613-4e4446da4e14?q=80&w=2071", "type": "cover", "caption": "Urban Edge Salon - LA's Modern Style Hub", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?q=80&w=2070", "type": "interior", "caption": "Contemporary styling floor", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074", "type": "interior", "caption": "Modern barbershop area", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?q=80&w=2074", "type": "gallery", "caption": "Creative color work", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Elena Rodriguez",
+        "email": "elena@elegancestudio.com",
+        "password": "Elegance2024!",
+        "phone": "3125556789"
+      },
+      "salon": {
+        "salon_name": "Elegance Hair Studio",
+        "address": "321 Michigan Avenue",
+        "city": "Chicago",
+        "state": "IL",
+        "zip": "60611",
+        "country": "United States",
+        "phone": "3125556789",
+        "email": "contact@elegancestudio.com",
+        "description": "Chicago's premier destination for sophisticated hair design and color artistry. Our award-winning stylists bring European techniques and cutting-edge trends to create stunning, personalized looks.",
+        "website": "https://elegancestudio.com",
+        "profile_picture": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=600&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "10:00", "end": "19:00" },
+          "Tuesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Thursday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Friday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Saturday": { "enabled": true, "start": "08:00", "end": "18:00" },
+          "Sunday": { "enabled": true, "start": "11:00", "end": "17:00" }
+        },
+        "amenities": ["Complimentary Wine & Coffee", "WiFi", "Valet Parking", "Designer Products", "Scalp Massage"],
+        "cancellationPolicy": "48-hour notice for color services, 24-hour for cuts. Late cancellations subject to fees.",
+        "depositPercentage": 25,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 75,
+        "pointsPerDollar": 3,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 500
+      },
+      "services": [
+        { "name": "Precision Cut", "category": "Haircuts", "duration": 60, "price": 95.00, "description": "Expert precision cutting" },
+        { "name": "Color Transformation", "category": "Hair Color", "duration": 180, "price": 285.00, "description": "Complete color makeover" },
+        { "name": "Balayage Artistry", "category": "Hair Color", "duration": 150, "price": 265.00, "description": "Hand-painted balayage highlights" },
+        { "name": "Brazilian Blowout", "category": "Hair Treatments", "duration": 180, "price": 350.00, "description": "Professional smoothing treatment" },
+        { "name": "Olaplex Restoration", "category": "Hair Treatments", "duration": 45, "price": 85.00, "description": "Bond-building treatment" },
+        { "name": "Luxury Blowout", "category": "Hair Treatments", "duration": 45, "price": 65.00, "description": "Premium styling blowout" },
+        { "name": "Special Event Styling", "category": "Haircuts", "duration": 90, "price": 125.00, "description": "Updos and special occasion styling" },
+        { "name": "Men's Executive Cut", "category": "Haircuts", "duration": 45, "price": 75.00, "description": "Professional men's haircut" }
+      ],
+      "products": [
+        { "name": "Kerastase Resistance Set", "category": "Hair", "description": "Professional strengthening treatment", "price": 98.00, "stock": 20 },
+        { "name": "Brazilian Blowout Acai Treatment", "category": "Hair", "description": "At-home smoothing treatment", "price": 145.00, "stock": 15 },
+        { "name": "Oribe Gold Lust Collection", "category": "Hair", "description": "Luxury hair care set", "price": 125.00, "stock": 12 },
+        { "name": "Bumble and Bumble Styling Suite", "category": "Hair", "description": "Professional styling products", "price": 78.00, "stock": 25 },
+        { "name": "GHD Professional Styling Tool", "category": "Other", "description": "Professional flat iron", "price": 229.00, "stock": 8 }
+      ],
+      "staff": [
+        { "name": "Sofia Valentina", "role": "Hair Stylist", "phone": "3125556701", "email": "sofia@elegancestudio.com", "specialization": "Precision Cuts, European Techniques, Styling" },
+        { "name": "Marco Bellini", "role": "Colorist", "phone": "3125556702", "email": "marco@elegancestudio.com", "specialization": "Balayage, Color Correction, Dimensional Color" },
+        { "name": "Jasmine Wu", "role": "Hair Stylist", "phone": "3125556703", "email": "jasmine@elegancestudio.com", "specialization": "Keratin Treatments, Asian Hair, Bridal Styling" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074", "type": "cover", "caption": "Elegance Hair Studio - Chicago's Premier Salon", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?q=80&w=2070", "type": "interior", "caption": "Luxurious styling stations", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1596704017254-9b121068ec31?q=80&w=2070", "type": "interior", "caption": "Premium product selection", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069", "type": "gallery", "caption": "Expert balayage work", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Michael Chen",
+        "email": "michael@trendsettersalon.com",
+        "password": "Trend2024!",
+        "phone": "4155559012"
+      },
+      "salon": {
+        "salon_name": "Trendsetter Salon & Spa",
+        "address": "567 Market Street",
+        "city": "San Francisco",
+        "state": "CA",
+        "zip": "94102",
+        "country": "United States",
+        "phone": "4155559012",
+        "email": "hello@trendsettersalon.com",
+        "description": "San Francisco's innovative salon combining cutting-edge hair design with holistic spa treatments. Experience the perfect blend of beauty, wellness, and sustainability in our eco-friendly studio.",
+        "website": "https://trendsettersalon.com",
+        "profile_picture": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=600&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": false, "start": "09:00", "end": "18:00" },
+          "Tuesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Thursday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Friday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Saturday": { "enabled": true, "start": "08:00", "end": "19:00" },
+          "Sunday": { "enabled": true, "start": "10:00", "end": "18:00" }
+        },
+        "amenities": ["Organic Tea & Coffee", "WiFi", "Eco-Friendly Products", "Complimentary Consultations", "Relaxation Lounge"],
+        "cancellationPolicy": "24-hour advance notice required. Late cancellations subject to fee.",
+        "depositPercentage": 15,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 40,
+        "pointsPerDollar": 1.5,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 300
+      },
+      "services": [
+        { "name": "Sustainable Haircut", "category": "Haircuts", "duration": 50, "price": 78.00, "description": "Eco-conscious precision cut" },
+        { "name": "Vivid Color Experience", "category": "Hair Color", "duration": 150, "price": 215.00, "description": "Bold, vibrant color transformation" },
+        { "name": "Natural Balayage", "category": "Hair Color", "duration": 135, "price": 195.00, "description": "Organic balayage highlights" },
+        { "name": "Organic Deep Treatment", "category": "Hair Treatments", "duration": 60, "price": 68.00, "description": "Natural hair conditioning treatment" },
+        { "name": "Detox Scalp Treatment", "category": "Hair Treatments", "duration": 45, "price": 58.00, "description": "Purifying scalp therapy" },
+        { "name": "Wellness Facial", "category": "Basic Facials", "duration": 60, "price": 95.00, "description": "Holistic facial treatment" },
+        { "name": "Zen Massage", "category": "Hair Treatments", "duration": 60, "price": 110.00, "description": "Relaxation massage therapy" },
+        { "name": "Express Style", "category": "Haircuts", "duration": 30, "price": 42.00, "description": "Quick cut and style" }
+      ],
+      "products": [
+        { "name": "Aveda Botanical Repair Set", "category": "Hair", "description": "Natural hair repair system", "price": 72.00, "stock": 30 },
+        { "name": "Davines Love Smoothing Collection", "category": "Hair", "description": "Eco-friendly smoothing products", "price": 64.00, "stock": 28 },
+        { "name": "Organic Argan Oil", "category": "Hair", "description": "Pure organic argan oil", "price": 45.00, "stock": 40 },
+        { "name": "Eco-Friendly Styling Cream", "category": "Hair", "description": "Natural styling cream", "price": 32.00, "stock": 35 },
+        { "name": "Bamboo Hair Brush", "category": "Other", "description": "Sustainable bamboo brush", "price": 28.00, "stock": 20 },
+        { "name": "Organic Scalp Serum", "category": "Hair", "description": "Natural scalp treatment", "price": 52.00, "stock": 22 }
+      ],
+      "staff": [
+        { "name": "Kai Anderson", "role": "Hair Stylist", "phone": "4155559001", "email": "kai@trendsettersalon.com", "specialization": "Fashion Colors, Pixie Cuts, Sustainable Styling" },
+        { "name": "Luna Martinez", "role": "Colorist", "phone": "4155559002", "email": "luna@trendsettersalon.com", "specialization": "Vivid Colors, Color Melting, Organic Dyes" },
+        { "name": "River Thompson", "role": "Technician", "phone": "4155559003", "email": "river@trendsettersalon.com", "specialization": "Spa Treatments, Facials, Wellness Massage" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=600", "type": "cover", "caption": "Trendsetter Salon & Spa - SF's Eco-Luxury Destination", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1610992015732-2449b76344bc?q=80&w=2070", "type": "interior", "caption": "Modern eco-friendly salon", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1519415510236-718bdfcd89c8?q=80&w=2070", "type": "interior", "caption": "Wellness spa area", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1519415510236-718bdfcd89c8?q=80&w=2074", "type": "gallery", "caption": "Sustainable beauty treatments", "is_primary": false }
+      ]
+    }
+  ]
+}
+
