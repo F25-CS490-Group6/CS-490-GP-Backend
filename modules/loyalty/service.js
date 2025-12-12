@@ -256,7 +256,7 @@ exports.validatePromoCode = async (code, salon_id, subtotal, user_id = null) => 
   // Check if user has already used this promo code (single-use per customer)
   if (user_id) {
     const [usage] = await db.query(
-      `SELECT id FROM promo_code_usage WHERE promo_id = ? AND user_id = ?`,
+      `SELECT usage_id FROM promo_code_usage WHERE promo_id = ? AND user_id = ?`,
       [promo.promo_id, user_id]
     );
     if (usage.length > 0) {
