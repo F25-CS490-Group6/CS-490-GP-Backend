@@ -148,7 +148,9 @@ exports.addServicePhoto = async (req, res) => {
       }
     }
 
-    const photo_url = `/uploads/${req.file.filename}`;
+    // S3 uploads have a 'location' property with full URL
+    // Local uploads have a 'filename' property
+    const photo_url = req.file.location || `/uploads/${req.file.filename}`;
 
     const photo_id = await photoService.addServicePhoto(
       appointment_id || null, 
@@ -299,7 +301,9 @@ exports.addSalonPhoto = async (req, res) => {
       return res.status(403).json({ error: "Not authorized to add photos to this salon" });
     }
 
-    const photo_url = `/uploads/${req.file.filename}`;
+    // S3 uploads have a 'location' property with full URL
+    // Local uploads have a 'filename' property
+    const photo_url = req.file.location || `/uploads/${req.file.filename}`;
     
     const photo_id = await photoService.addSalonPhoto(salon_id, photo_url, caption);
     res.json({ message: "Photo added to gallery", photo_id, photo_url });

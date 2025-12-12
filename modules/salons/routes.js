@@ -4,9 +4,10 @@ const multer = require("multer");
 const path = require("path");
 const { verifyAnyToken } = require("../../middleware/verifyAnyTokens");
 const salonController = require("./controller");
+const { salonUpload, isS3Configured } = require("../../middleware/s3Upload");
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
+// Configure local multer as fallback when S3 is not configured
+const localStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "public/uploads/");
   },
@@ -16,8 +17,8 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({
-  storage: storage,
+const localUpload = multer({
+  storage: localStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif/;
@@ -33,6 +34,9 @@ const upload = multer({
     }
   },
 });
+
+// Use S3 upload if configured, otherwise fall back to local storage
+const upload = isS3Configured() ? salonUpload : localUpload;
 
 // Always define specific routes BEFORE dynamic ones
 // Services endpoint (authenticated - for salon settings, must be before public)
