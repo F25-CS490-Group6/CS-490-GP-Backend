@@ -444,27 +444,60 @@ exports.getCustomerRetention = async () => {
 };
 
 exports.getReports = async (startDate = null, endDate = null) => {
-  let sql = `SELECT s.salon_id, s.name AS salon_name, SUM(p.amount) AS total_sales
-     FROM payments p
-     JOIN appointments a ON p.appointment_id = a.appointment_id
-     JOIN salons s ON a.salon_id = s.salon_id
-     WHERE p.payment_status = 'completed'`;
   const params = [];
-
+  const dateFilter = [];
   if (startDate) {
-    sql += ` AND p.created_at >= ?`;
+    dateFilter.push("p.created_at >= ?");
     params.push(startDate);
   }
-
   if (endDate) {
-    sql += ` AND p.created_at <= ?`;
+    dateFilter.push("p.created_at <= ?");
     params.push(endDate);
   }
 
-  sql += ` GROUP BY s.salon_id, s.name`;
+  const dateClause = dateFilter.length ? ` AND ${dateFilter.join(" AND ")}` : "";
 
-  const [reports] = await db.query(sql, params);
-  return reports;
+  const [reports] = await db.query(
+    `SELECT s.salon_id, s.name AS salon_name, SUM(p.amount) AS total_sales
+     FROM payments p
+     JOIN appointments a ON p.appointment_id = a.appointment_id
+     JOIN salons s ON a.salon_id = s.salon_id
+     WHERE p.payment_status = 'completed' ${dateClause}
+     GROUP BY s.salon_id, s.name`,
+    params
+  );
+
+  // KPI summary
+  const [[summary]] = await db.query(
+    `SELECT 
+        SUM(p.amount) AS total_revenue,
+        COUNT(*) AS total_payments
+     FROM payments p
+     WHERE p.payment_status = 'completed' ${dateClause}`,
+    params
+  );
+
+  // Bookings/completion
+  const [[bookings]] = await db.query(
+    `SELECT 
+        COUNT(*) AS total_bookings,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_bookings,
+        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_bookings
+     FROM appointments
+     WHERE 1=1 ${dateClause.replace(/p\.created_at/g, "scheduled_time")}`,
+    params
+  );
+
+  return {
+    reports,
+    summary: {
+      total_revenue: Number(summary?.total_revenue || 0),
+      total_payments: Number(summary?.total_payments || 0),
+      total_bookings: Number(bookings?.total_bookings || 0),
+      completed_bookings: Number(bookings?.completed_bookings || 0),
+      cancelled_bookings: Number(bookings?.cancelled_bookings || 0),
+    },
+  };
 };
 
 /**

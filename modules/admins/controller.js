@@ -93,7 +93,7 @@ exports.getCustomerRetention = async (req, res) => {
 exports.getReports = async (req, res) => {
   try {
     const reports = await adminService.getReports();
-    res.json({ reports });
+    res.json(reports);
   } catch (err) {
     console.error("Get reports error:", err);
     res.status(500).json({ error: "Failed to get reports" });
