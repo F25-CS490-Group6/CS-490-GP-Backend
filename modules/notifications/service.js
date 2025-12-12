@@ -250,32 +250,40 @@ exports.processNotificationQueue = async () => {
         // For in-app reminders, create a notification in the notifications table
         if (queued.delivery_method === 'in-app') {
           await exports.createNotification(queued.user_id, 'reminder', queued.message);
+          console.log(`[Reminder] Created in-app notification for user ${queued.user_id} (queue_id ${queued.queue_id})`);
           processedCount++;
         }
-        // For email reminders, send actual email
+        // For email reminders, send actual email (if email is configured)
         else if (queued.delivery_method === 'email') {
-          const { sendEmail } = require('../../config/mailer');
-          
-          const emailHtml = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #333;">Appointment Reminder</h2>
-              <p>Hi ${user.full_name || 'there'},</p>
-              <p>${queued.message}</p>
-              <p style="margin-top: 20px;">We look forward to seeing you!</p>
-              <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                This is an automated reminder. Please don't reply to this email.
-              </p>
-            </div>
-          `;
-          
-          await sendEmail(
-            user.email,
-            'Appointment Reminder',
-            emailHtml
-          );
-          
-          console.log(`[Reminder] Sent email reminder to ${user.email} for queue_id ${queued.queue_id}`);
-          processedCount++;
+          try {
+            const { sendEmail } = require('../../config/mailer');
+            
+            const emailHtml = `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333;">🔔 Appointment Reminder</h2>
+                <p>Hi ${user.full_name || 'there'},</p>
+                <p>${queued.message}</p>
+                <p style="margin-top: 20px;">We look forward to seeing you!</p>
+                <p style="color: #666; font-size: 12px; margin-top: 30px;">
+                  This is an automated reminder. Please don't reply to this email.
+                </p>
+              </div>
+            `;
+            
+            await sendEmail(
+              user.email,
+              '🔔 Appointment Reminder',
+              emailHtml
+            );
+            
+            console.log(`[Reminder] Sent email reminder to ${user.email} (queue_id ${queued.queue_id})`);
+            processedCount++;
+          } catch (emailError) {
+            console.error(`[Reminder] Email failed for queue_id ${queued.queue_id}, falling back to in-app:`, emailError.message);
+            // Fallback to in-app notification if email fails
+            await exports.createNotification(queued.user_id, 'reminder', queued.message);
+            processedCount++;
+          }
         }
         
         // Mark as sent
