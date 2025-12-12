@@ -28,7 +28,7 @@ const getAccountSettings = async (req, res) => {
 
 /**
  * PUT /api/account/settings
- * Update account profile (name, email, phone)
+ * Update account profile (name, email, phone, gender, birth_year)
  */
 const updateAccountSettings = async (req, res) => {
   try {
@@ -38,12 +38,14 @@ const updateAccountSettings = async (req, res) => {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const { full_name, email, phone } = req.body;
+    const { full_name, email, phone, gender, birth_year } = req.body;
 
     const updates = {};
     if (full_name !== undefined) updates.full_name = full_name;
     if (email !== undefined) updates.email = email;
     if (phone !== undefined) updates.phone = phone;
+    if (gender !== undefined) updates.gender = gender;
+    if (birth_year !== undefined) updates.birth_year = birth_year;
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: "No fields to update" });
