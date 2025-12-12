@@ -201,6 +201,7 @@ exports.getPaymentBySessionId = async (req, res) => {
     // Check if payment needs confirmation (webhook might not have fired)
     // This is a fallback for development when webhooks might not be configured
     // Set timeout to prevent hanging
+    let responseSent = false;
     try {
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error("Payment verification timeout")), 10000)
@@ -295,6 +296,7 @@ exports.getPaymentBySessionId = async (req, res) => {
             // Refetch payment to get updated data
             const updatedPayment = await paymentService.getPaymentBySessionId(session_id);
             if (updatedPayment) {
+              responseSent = true;
               return res.json({ payment: updatedPayment });
             }
           } else {
@@ -302,6 +304,7 @@ exports.getPaymentBySessionId = async (req, res) => {
           }
           // IMPORTANT: Return here to prevent falling through to unified checkout logic
           const finalPayment = await paymentService.getPaymentBySessionId(session_id);
+          responseSent = true;
           return res.json({ payment: finalPayment });
         } else if (resolvedCartId && hasCartIdInMetadata) {
           // True unified checkout with cart_id in metadata
@@ -321,9 +324,8 @@ exports.getPaymentBySessionId = async (req, res) => {
             
             // Refetch payment to get updated data
             const updatedPayment = await paymentService.getPaymentBySessionId(session_id);
-            if (updatedPayment) {
-              return res.json({ payment: updatedPayment });
-            }
+            responseSent = true;
+            return res.json({ payment: updatedPayment || payment });
           } else {
             console.log(`[Payment] Cart items already cleared, webhook likely processed this payment`);
           }
@@ -349,6 +351,7 @@ exports.getPaymentBySessionId = async (req, res) => {
               
               const updatedPayment = await paymentService.getPaymentBySessionId(session_id);
               if (updatedPayment) {
+                responseSent = true;
                 return res.json({ payment: updatedPayment });
               }
             }
@@ -375,6 +378,7 @@ exports.getPaymentBySessionId = async (req, res) => {
             // Refetch payment to get updated data
             const updatedPayment = await paymentService.getPaymentBySessionId(session_id);
             if (updatedPayment) {
+              responseSent = true;
               return res.json({ payment: updatedPayment });
             }
           } else {
@@ -411,7 +415,9 @@ exports.getPaymentBySessionId = async (req, res) => {
       // Continue with original payment data even if verification fails
     }
 
-    res.json({ payment });
+    if (!responseSent) {
+      res.json({ payment });
+    }
   } catch (err) {
     console.error("Get payment by session error:", err);
     res.status(500).json({ error: err.message });
