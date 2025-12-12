@@ -416,13 +416,14 @@ exports.confirmPayment = async (checkoutSessionId, paymentIntentId) => {
       );
       
       if (appointment && appointment.email) {
+        const paidAmount = Number(payment?.amount) || 0;
         const emailHtml = `
           <h2>Appointment Confirmed!</h2>
           <p>Dear ${appointment.full_name || "Customer"},</p>
           <p>Your payment has been received and your appointment at <b>${appointment.salon_name}</b> is now confirmed.</p>
           <ul>
             <li><b>Date & Time:</b> ${new Date(appointment.scheduled_time).toLocaleString()}</li>
-            <li><b>Amount Paid:</b> $${payment?.amount?.toFixed(2) || '0.00'}</li>
+            <li><b>Amount Paid:</b> $${paidAmount.toFixed(2)}</li>
           </ul>
           <p><b>Salon Address:</b> ${appointment.salon_address || "N/A"}</p>
           <p>We look forward to seeing you!</p>
@@ -514,10 +515,11 @@ exports.confirmPayment = async (checkoutSessionId, paymentIntentId) => {
           [appointment_id]
         );
         if (appointment) {
+          const depositAmount = Number(payment.amount) || 0;
           await notificationService.createNotification(
             user_id,
             "appointment",
-            `Your deposit of $${payment.amount.toFixed(2)} for ${appointment.salon_name} has been received. Your appointment is confirmed!`
+            `Your deposit of $${depositAmount.toFixed(2)} for ${appointment.salon_name} has been received. Your appointment is confirmed!`
           );
         }
       }
@@ -1184,13 +1186,17 @@ exports.confirmUnifiedCheckout = async (checkoutSessionId, paymentIntentId) => {
       for (const item of cartItems) {
         if (item.type === 'product') {
           const [[product]] = await db.query('SELECT name FROM products WHERE product_id = ?', [item.product_id]);
-          itemsList += `<li>${product?.name || 'Product'} x${item.quantity} - $${(item.price * item.quantity).toFixed(2)}</li>`;
+          const price = Number(item.price) || 0;
+          const quantity = Number(item.quantity) || 1;
+          itemsList += `<li>${product?.name || 'Product'} x${quantity} - $${(price * quantity).toFixed(2)}</li>`;
         } else if (item.type === 'service') {
           const [[service]] = await db.query('SELECT custom_name FROM services WHERE service_id = ?', [item.service_id]);
-          itemsList += `<li>${service?.custom_name || 'Service'} - $${item.price.toFixed(2)}</li>`;
+          const price = Number(item.price) || 0;
+          itemsList += `<li>${service?.custom_name || 'Service'} - $${price.toFixed(2)}</li>`;
         }
       }
       
+      const totalAmount = Number(payment?.amount) || 0;
       const emailHtml = `
         <h2>Order Confirmed!</h2>
         <p>Dear ${user.full_name || "Customer"},</p>
@@ -1199,7 +1205,7 @@ exports.confirmUnifiedCheckout = async (checkoutSessionId, paymentIntentId) => {
         <ul>
           ${itemsList}
         </ul>
-        <p><b>Total Amount Paid:</b> $${payment?.amount?.toFixed(2) || '0.00'}</p>
+        <p><b>Total Amount Paid:</b> $${totalAmount.toFixed(2)}</p>
         <p><b>Salon Address:</b> ${user.salon_address || "N/A"}</p>
         <p>Thank you for your purchase!</p>
       `;
