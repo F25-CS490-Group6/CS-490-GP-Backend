@@ -368,7 +368,8 @@ exports.createAppointment = async (req, res) => {
 
         // Only schedule if reminder time is in the future
         if (reminderTime > new Date()) {
-          const reminderMessage = `Reminder: You have an appointment at ${getSalonName(
+          const hoursText = reminderHours === 1 ? '1 hour' : `${reminderHours} hours`;
+          const reminderMessage = `Your appointment is in ${hoursText}. You have an appointment at ${getSalonName(
             salonInfo
           )} on ${appointmentDate.toLocaleString()}`;
 
@@ -653,7 +654,8 @@ exports.updateAppointment = async (req, res) => {
             "SELECT name FROM salons WHERE salon_id = ?",
             [appointment.salon_id]
           );
-          const reminderMessage = `Reminder: You have an appointment at ${getSalonName(
+          const hoursText = reminderHours === 1 ? '1 hour' : `${reminderHours} hours`;
+          const reminderMessage = `Your appointment is in ${hoursText}. You have an appointment at ${getSalonName(
             salonInfo
           )} on ${appointmentDate.toLocaleString()}`;
 
