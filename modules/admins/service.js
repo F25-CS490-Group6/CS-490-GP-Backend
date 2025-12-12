@@ -559,7 +559,7 @@ exports.getPendingSalons = async () => {
     WHERE s.approved = 'pending' OR s.status = 'pending'
     ORDER BY s.created_at DESC`
   );
-  return salons;
+  return { salons, count: salons.length };
 };
 
 /**
