@@ -1,6 +1,6 @@
 const adminService = require("./service");
 
-exports.getUserEngagement = async (req, res) => {
+exports.getUserEngagement = async (_req, res) => {
   try {
     const engagement = await adminService.getUserEngagement();
     res.json({ engagement });
@@ -10,7 +10,7 @@ exports.getUserEngagement = async (req, res) => {
   }
 };
 
-exports.getAppointmentTrends = async (req, res) => {
+exports.getAppointmentTrends = async (_req, res) => {
   try {
     const trends = await adminService.getAppointmentTrends();
     res.json({ trends });
@@ -20,7 +20,7 @@ exports.getAppointmentTrends = async (req, res) => {
   }
 };
 
-exports.getSalonRevenues = async (req, res) => {
+exports.getSalonRevenues = async (_req, res) => {
   try {
     const revenues = await adminService.getSalonRevenues();
     res.json({ revenues });
@@ -30,7 +30,7 @@ exports.getSalonRevenues = async (req, res) => {
   }
 };
 
-exports.getLoyaltyUsage = async (req, res) => {
+exports.getLoyaltyUsage = async (_req, res) => {
   try {
     const loyalty = await adminService.getLoyaltyUsage();
     res.json({ loyalty });
@@ -40,7 +40,7 @@ exports.getLoyaltyUsage = async (req, res) => {
   }
 };
 
-exports.getUserDemographics = async (req, res) => {
+exports.getUserDemographics = async (_req, res) => {
   try {
     const demographics = await adminService.getUserDemographics();
     res.json({ demographics });
@@ -50,7 +50,7 @@ exports.getUserDemographics = async (req, res) => {
   }
 };
 
-exports.getCustomerRetention = async (req, res) => {
+exports.getCustomerRetention = async (_req, res) => {
   try {
     const retention = await adminService.getCustomerRetention();
     res.json({ retention });
@@ -79,7 +79,7 @@ exports.getReports = async (req, res) => {
   }
 };
 
-exports.getSystemLogs = async (req, res) => {
+exports.getSystemLogs = async (_req, res) => {
   try {
     const logs = await adminService.getSystemLogs();
     res.json({ logs });
@@ -89,7 +89,7 @@ exports.getSystemLogs = async (req, res) => {
   }
 };
 
-exports.getPendingSalons = async (req, res) => {
+exports.getPendingSalons = async (_req, res) => {
   try {
     const { salons, count } = await adminService.getPendingSalons();
     res.json({ salons, count });
@@ -138,7 +138,7 @@ exports.verifySalonRegistration = async (req, res) => {
  * Get comprehensive system health metrics
  * GET /api/admins/health
  */
-exports.getSystemHealth = async (req, res) => {
+exports.getSystemHealth = async (_req, res) => {
   try {
     const health = await adminService.getSystemHealth();
 
@@ -162,7 +162,7 @@ exports.getSystemHealth = async (req, res) => {
  * Get platform uptime and reliability metrics
  * GET /api/admins/platform-reliability
  */
-exports.getPlatformReliability = async (req, res) => {
+exports.getPlatformReliability = async (_req, res) => {
   try {
     const metrics = await adminService.getPlatformReliability();
     res.json(metrics);
