@@ -75,3 +75,7 @@ exports.deleteSalonPhoto = async (photo_id) => {
   await db.query(`DELETE FROM salon_photos WHERE photo_id = ?`, [photo_id]);
 };
 
+exports.deleteServicePhoto = async (photo_id) => {
+  await db.query(`DELETE FROM service_photos WHERE photo_id = ?`, [photo_id]);
+};
+

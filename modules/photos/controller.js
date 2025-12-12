@@ -345,3 +345,45 @@ exports.deleteSalonPhoto = async (req, res) => {
   }
 };
 
+// Delete a service photo (before/after)
+exports.deleteServicePhoto = async (req, res) => {
+  try {
+    const photo_id = req.params.photo_id;
+    const userId = req.user?.user_id || req.user?.id;
+    const staffId = req.user?.staff_id;
+
+    // Verify ownership - user who uploaded, staff member, or salon owner
+    const { db } = require("../../config/database");
+    const [photoRows] = await db.query(
+      `SELECT sp.*, s.owner_id, st.user_id as staff_user_id
+       FROM service_photos sp
+       LEFT JOIN salons s ON sp.salon_id = s.salon_id
+       LEFT JOIN staff st ON sp.staff_id = st.staff_id
+       WHERE sp.photo_id = ?`,
+      [photo_id]
+    );
+
+    if (!photoRows || photoRows.length === 0) {
+      return res.status(404).json({ error: "Photo not found" });
+    }
+
+    const photo = photoRows[0];
+    
+    // Allow delete if: user owns the photo, staff uploaded it, salon owner, or admin
+    const isOwner = photo.user_id === userId;
+    const isStaffUploader = staffId && photo.staff_id === staffId;
+    const isSalonOwner = photo.owner_id === userId;
+    const isAdmin = req.user?.user_role === 'admin';
+
+    if (!isOwner && !isStaffUploader && !isSalonOwner && !isAdmin) {
+      return res.status(403).json({ error: "Not authorized to delete this photo" });
+    }
+
+    await photoService.deleteServicePhoto(photo_id);
+    res.json({ message: "Photo deleted" });
+  } catch (err) {
+    console.error("Delete service photo error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
