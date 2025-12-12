@@ -534,10 +534,12 @@ exports.createSalon = async (req, res) => {
       .replace(/^-+|-+$/g, '');
 
     // Handle profile picture upload if provided
+    // S3 uploads have a 'location' property with full URL
+    // Local uploads have a 'filename' property
     let profilePicturePath = null;
     if (req.files && req.files.length > 0) {
       const file = req.files[0];
-      profilePicturePath = `/uploads/${file.filename}`;
+      profilePicturePath = file.location || `/uploads/${file.filename}`;
     }
 
     // Insert the new salon
@@ -740,9 +742,11 @@ exports.getSalonByIdPublic = async (req, res) => {
     );
 
     // Get backend URL from environment or construct from request
+    // Use x-forwarded-proto header if available (for AWS load balancer/proxy)
+    const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
     const backendUrl = process.env.BACKEND_URL || 
                       process.env.API_URL || 
-                      (req.protocol + '://' + req.get('host'));
+                      (protocol + '://' + req.get('host'));
 
     // Format photo URLs to be absolute if they're relative
     const formattedPhotos = (galleryPhotos || []).map(photo => ({
@@ -944,9 +948,11 @@ exports.updateSalon = async (req, res) => {
     }
 
     // Handle profile picture if uploaded
+    // S3 uploads have a 'location' property with full URL
+    // Local uploads have a 'filename' property
     if (req.files && req.files.length > 0) {
       const file = req.files[0];
-      const profilePicturePath = `/uploads/${file.filename}`;
+      const profilePicturePath = file.location || `/uploads/${file.filename}`;
       updates.push("profile_picture = ?");
       values.push(profilePicturePath);
     }

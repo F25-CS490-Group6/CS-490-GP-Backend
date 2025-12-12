@@ -52,10 +52,10 @@ exports.getUserPhotos = async (user_id, salon_id = null) => {
 // Get all gallery photos for a salon
 exports.getSalonGallery = async (salon_id) => {
   const [photos] = await db.query(
-    `SELECT photo_id, salon_id, photo_url, caption, uploaded_at 
+    `SELECT photo_id, salon_id, photo_url, caption, created_at as uploaded_at 
      FROM salon_photos 
      WHERE salon_id = ? 
-     ORDER BY uploaded_at DESC`,
+     ORDER BY created_at DESC`,
     [salon_id]
   );
   return photos;
@@ -73,5 +73,9 @@ exports.addSalonPhoto = async (salon_id, photo_url, caption) => {
 // Delete a photo from gallery
 exports.deleteSalonPhoto = async (photo_id) => {
   await db.query(`DELETE FROM salon_photos WHERE photo_id = ?`, [photo_id]);
+};
+
+exports.deleteServicePhoto = async (photo_id) => {
+  await db.query(`DELETE FROM service_photos WHERE photo_id = ?`, [photo_id]);
 };
 

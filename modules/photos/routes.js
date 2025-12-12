@@ -9,6 +9,7 @@ const upload = require("../../middleware/upload");
 // IMPORTANT: Specific routes must come before dynamic routes
 router.post("/add", verifyAnyToken, upload.single('photo'), photoController.addServicePhoto);
 router.get("/user/:user_id", verifyAnyToken, photoController.getUserPhotos);
+router.delete("/service/:photo_id", verifyAnyToken, photoController.deleteServicePhoto);
 router.get("/:appointment_id", verifyAnyToken, photoController.getServicePhotos);
 
 // Salon gallery photos
