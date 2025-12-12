@@ -21,29 +21,8 @@ const options = {
   apis: ["./app.js", "./modules/**/*.js", "./middleware/**/*.js"],
 };
 
-// Generate swagger spec
 const swaggerSpec = swaggerJSDoc(options);
 
-// Export swagger setup function
 module.exports = (app) => {
-  const { verifyAnyToken } = require("./middleware/verifyAnyTokens");
-  const checkRoles = require("./middleware/checkRoles");
-
-  // Raw JSON
-  app.get("/docs.json", (req, res) => res.json(swaggerSpec));
-
-  // Public docs (optional)
-  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-  // Protected admin docs
-  app.use(
-    "/admin/docs",
-    verifyAnyToken,
-    checkRoles("admin"),
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec)
-  );
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 };
-
-// export spec if needed
-module.exports.swaggerSpec = swaggerSpec;

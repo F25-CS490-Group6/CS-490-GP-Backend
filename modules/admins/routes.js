@@ -19,6 +19,14 @@ router.get("/system-logs", ...adminOnly, adminController.getSystemLogs);
 router.get("/pending-salons", ...adminOnly, adminController.getPendingSalons);
 router.get("/system-health", ...adminOnly, adminController.getSystemHealth);
 
+// Platform health and reliability monitoring
+router.get("/health", ...adminOnly, adminController.getSystemHealth);
+router.get("/platform-reliability", ...adminOnly, adminController.getPlatformReliability);
+
+// Platform health and reliability monitoring
+router.get("/health", ...adminOnly, adminController.getSystemHealth);
+router.get("/platform-reliability", ...adminOnly, adminController.getPlatformReliability);
+
 // Salon verification route
 // As an admin, I want to verify salon registrations so that only legitimate businesses are listed.
 router.post("/verify/:salon_id", ...adminOnly, adminController.verifySalonRegistration);

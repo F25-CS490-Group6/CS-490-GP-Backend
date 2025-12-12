@@ -74,6 +74,14 @@ router.delete(
   userController.deleteSalonCustomer
 );
 
+// Get customer visit history (appointments) for a specific salon
+router.get(
+  "/salon-customers/:userId/appointments",
+  verifyAnyToken,
+  checkRole("owner", "staff", "admin"),
+  userController.getCustomerVisitHistory
+);
+
 // Admin or self: view single user
 router.get(
   "/:id",

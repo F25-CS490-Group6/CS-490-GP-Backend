@@ -1,6 +1,6 @@
 const adminService = require("./service");
 
-exports.getUserEngagement = async (req, res) => {
+exports.getUserEngagement = async (_req, res) => {
   try {
     const engagement = await adminService.getUserEngagement();
     res.json({ engagement });
@@ -10,7 +10,7 @@ exports.getUserEngagement = async (req, res) => {
   }
 };
 
-exports.getAppointmentTrends = async (req, res) => {
+exports.getAppointmentTrends = async (_req, res) => {
   try {
     const trends = await adminService.getAppointmentTrends();
     res.json({ trends });
@@ -20,7 +20,7 @@ exports.getAppointmentTrends = async (req, res) => {
   }
 };
 
-exports.getSalonRevenues = async (req, res) => {
+exports.getSalonRevenues = async (_req, res) => {
   try {
     const revenues = await adminService.getSalonRevenues();
     res.json({ revenues });
@@ -30,7 +30,7 @@ exports.getSalonRevenues = async (req, res) => {
   }
 };
 
-exports.getLoyaltyUsage = async (req, res) => {
+exports.getLoyaltyUsage = async (_req, res) => {
   try {
     const loyalty = await adminService.getLoyaltyUsage();
     res.json({ loyalty });
@@ -40,7 +40,7 @@ exports.getLoyaltyUsage = async (req, res) => {
   }
 };
 
-exports.getUserDemographics = async (req, res) => {
+exports.getUserDemographics = async (_req, res) => {
   try {
     const demographics = await adminService.getUserDemographics();
     res.json({ demographics });
@@ -50,7 +50,7 @@ exports.getUserDemographics = async (req, res) => {
   }
 };
 
-exports.getCustomerRetention = async (req, res) => {
+exports.getCustomerRetention = async (_req, res) => {
   try {
     const retention = await adminService.getCustomerRetention();
     res.json({ retention });
@@ -62,15 +62,24 @@ exports.getCustomerRetention = async (req, res) => {
 
 exports.getReports = async (req, res) => {
   try {
-    const reports = await adminService.getReports();
-    res.json({ reports });
+    const { start_date, end_date, format } = req.query;
+    const reports = await adminService.getReports(start_date || null, end_date || null);
+
+    if (format === 'csv') {
+      const csv = adminService.convertReportsToCSV(reports);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="reports-${Date.now()}.csv"`);
+      res.send(csv);
+    } else {
+      res.json({ reports });
+    }
   } catch (err) {
     console.error("Get reports error:", err);
     res.status(500).json({ error: "Failed to get reports" });
   }
 };
 
-exports.getSystemLogs = async (req, res) => {
+exports.getSystemLogs = async (_req, res) => {
   try {
     const logs = await adminService.getSystemLogs();
     res.json({ logs });
@@ -80,7 +89,7 @@ exports.getSystemLogs = async (req, res) => {
   }
 };
 
-exports.getPendingSalons = async (req, res) => {
+exports.getPendingSalons = async (_req, res) => {
   try {
     const { salons, count } = await adminService.getPendingSalons();
     res.json({ salons, count });
@@ -94,22 +103,71 @@ exports.verifySalonRegistration = async (req, res) => {
   try {
     const salonId = req.params.salon_id || req.params.sid;
     const { approved } = req.body;
-    const adminUserId = req.user?.user_id;
-    const result = await adminService.updateSalonRegistration(salonId, approved, adminUserId);
-    res.json(result);
+    const adminUserId = req.user?.user_id || req.user?.id;
+
+    if (!salonId) {
+      return res.status(400).json({ error: "Salon ID is required" });
+    }
+
+    // Default to 'approved' if not specified
+    const approvalStatus = approved?.toLowerCase() || 'approved';
+
+    const result = await adminService.updateSalonRegistration(
+      parseInt(salonId, 10),
+      approvalStatus,
+      adminUserId
+    );
+
+    res.status(200).json(result);
   } catch (err) {
-    console.error("Verify salon error:", err);
-    res.status(500).json({ error: err.message || "Failed to verify salon" });
+    console.error("Verify salon registration error:", err);
+
+    if (err.message === "Salon not found") {
+      return res.status(404).json({ error: err.message });
+    }
+
+    if (err.message.includes("Invalid approval status")) {
+      return res.status(400).json({ error: err.message });
+    }
+
+    res.status(500).json({ error: err.message || "Failed to verify salon registration" });
   }
 };
 
-// System health (uptime/errors) - mock for now
-exports.getSystemHealth = async (req, res) => {
+/**
+ * Get comprehensive system health metrics
+ * GET /api/admins/health
+ */
+exports.getSystemHealth = async (_req, res) => {
   try {
-    const data = await adminService.getSystemHealth();
-    res.json(data);
+    const health = await adminService.getSystemHealth();
+
+    // Set HTTP status based on health status
+    const statusCode = health.status === 'healthy' ? 200 :
+                       health.status === 'degraded' ? 200 :
+                       503;
+
+    res.status(statusCode).json(health);
   } catch (err) {
-    console.error("Get system health error:", err);
-    res.status(500).json({ error: err.message || "Failed to fetch system health" });
+    console.error("System health error:", err);
+    res.status(500).json({
+      status: 'error',
+      error: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+/**
+ * Get platform uptime and reliability metrics
+ * GET /api/admins/platform-reliability
+ */
+exports.getPlatformReliability = async (_req, res) => {
+  try {
+    const metrics = await adminService.getPlatformReliability();
+    res.json(metrics);
+  } catch (err) {
+    console.error("Platform reliability error:", err);
+    res.status(500).json({ error: err.message });
   }
 };

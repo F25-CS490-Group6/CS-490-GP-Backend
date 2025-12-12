@@ -910,8 +910,8 @@ exports.getSalonStats = async (req, res) => {
   try {
     await appointmentService.expireStalePendingAppointments();
     const salon_id = Number(req.query.salon_id);
-    if (!salon_id)
-      return res.status(400).json({ error: "Missing salon_id parameter" });
+    if (!salon_id || isNaN(salon_id) || salon_id <= 0)
+      return res.status(400).json({ error: "Valid salon_id required" });
 
     const [rows] = await db.query(
       `
