@@ -206,10 +206,12 @@ exports.getSalonRevenues = async (startDate = null, endDate = null) => {
 
 exports.getLoyaltyUsage = async () => {
   const [usage] = await db.query(
-    `SELECT salon_id, SUM(points) AS total_points
-     FROM loyalty
-     WHERE last_earned >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-     GROUP BY salon_id`
+    `SELECT l.salon_id, s.name AS salon_name, SUM(l.points) AS total_points
+     FROM loyalty l
+     JOIN salons s ON l.salon_id = s.salon_id
+     WHERE l.last_earned >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+     GROUP BY l.salon_id, s.name
+     ORDER BY total_points DESC`
   );
   return usage;
 };
