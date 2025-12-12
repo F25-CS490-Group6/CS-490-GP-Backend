@@ -40,6 +40,16 @@ exports.getLoyaltyUsage = async (req, res) => {
   }
 };
 
+exports.getLoyaltySummary = async (req, res) => {
+  try {
+    const summary = await adminService.getLoyaltySummary();
+    res.json(summary);
+  } catch (err) {
+    console.error("Get loyalty summary error:", err);
+    res.status(500).json({ error: "Failed to get loyalty summary" });
+  }
+};
+
 exports.getUserDemographics = async (req, res) => {
   try {
     const demographics = await adminService.getUserDemographics();

@@ -12,6 +12,7 @@ router.get("/user-engagement", ...adminOnly, adminController.getUserEngagement);
 router.get("/appointment-trends", ...adminOnly, adminController.getAppointmentTrends);
 router.get("/salon-revenues", ...adminOnly, adminController.getSalonRevenues);
 router.get("/loyalty-usage", ...adminOnly, adminController.getLoyaltyUsage);
+router.get("/loyalty-summary", ...adminOnly, adminController.getLoyaltySummary);
 router.get("/user-demographics", ...adminOnly, adminController.getUserDemographics);
 router.get("/customer-retention", ...adminOnly, adminController.getCustomerRetention);
 router.get("/reports", ...adminOnly, adminController.getReports);

@@ -216,6 +216,45 @@ exports.getLoyaltyUsage = async () => {
   return usage;
 };
 
+exports.getLoyaltySummary = async () => {
+  // Points and member counts per salon (last 30d)
+  const [bySalon] = await db.query(
+    `SELECT 
+        l.salon_id,
+        s.name AS salon_name,
+        SUM(l.points) AS total_points,
+        COUNT(DISTINCT l.user_id) AS member_count
+     FROM loyalty l
+     JOIN salons s ON l.salon_id = s.salon_id
+     WHERE l.last_earned >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+     GROUP BY l.salon_id, s.name
+     ORDER BY total_points DESC`
+  );
+
+  // Active members (customers with any points last 30d)
+  const [[membersRow]] = await db.query(
+    `SELECT COUNT(DISTINCT user_id) AS active_members
+     FROM loyalty
+     WHERE last_earned >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
+  );
+
+  const total_points = bySalon.reduce(
+    (sum, row) => sum + Number(row.total_points || 0),
+    0
+  );
+  const active_salons = bySalon.length;
+  const active_members = membersRow?.active_members || 0;
+  const top_salon = bySalon[0] || null;
+
+  return {
+    total_points,
+    active_salons,
+    active_members,
+    by_salon: bySalon,
+    top_salon,
+  };
+};
+
 exports.getUserDemographics = async () => {
   let gender = [];
   let age = [];
