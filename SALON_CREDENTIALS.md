@@ -4,6 +4,16 @@
 
 ---
 
+## 👑 Admin Account
+
+### System Administrator
+- **Email**: `stygo.notifications@gmail.com`
+- **Password**: `stygo1`
+- **Role**: Admin
+- **Access**: Full platform access, can manage all salons
+
+---
+
 ## 🏢 Salon 1: Luxe Beauty Studio
 
 ### 📍 Location
