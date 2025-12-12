@@ -544,6 +544,614 @@
         { "url": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074", "type": "interior", "caption": "Tropical salon atmosphere", "is_primary": false },
         { "url": "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?q=80&w=2074", "type": "gallery", "caption": "Beach-ready hair", "is_primary": false }
       ]
+    },
+    {
+      "owner": {
+        "full_name": "Victoria Ashford",
+        "email": "victoria@elitemanhattan.com",
+        "password": "Elite2024!",
+        "phone": "2125557788"
+      },
+      "salon": {
+        "salon_name": "Éclat Elite Spa & Salon",
+        "address": "245 Park Avenue, Suite 1200",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10167",
+        "country": "United States",
+        "phone": "2125557788",
+        "email": "concierge@eclatelite.com",
+        "description": "Manhattan's most prestigious destination for luxury beauty treatments. Featuring private VIP suites, champagne service, and world-class stylists trained in Paris and Milan. Where elegance meets excellence.",
+        "website": "https://eclatelite.com",
+        "profile_picture": "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?q=80&w=2069&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "08:00", "end": "21:00" },
+          "Tuesday": { "enabled": true, "start": "08:00", "end": "21:00" },
+          "Wednesday": { "enabled": true, "start": "08:00", "end": "21:00" },
+          "Thursday": { "enabled": true, "start": "08:00", "end": "22:00" },
+          "Friday": { "enabled": true, "start": "08:00", "end": "22:00" },
+          "Saturday": { "enabled": true, "start": "07:00", "end": "20:00" },
+          "Sunday": { "enabled": true, "start": "09:00", "end": "19:00" }
+        },
+        "amenities": ["Champagne Bar", "Private VIP Suites", "Valet Parking", "Personal Concierge", "Designer Products", "Luxury Spa Robes"],
+        "cancellationPolicy": "48-hour cancellation notice required. VIP appointments require 72-hour notice.",
+        "depositPercentage": 30,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 100,
+        "pointsPerDollar": 3,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 1000
+      },
+      "services": [
+        { "name": "Signature Elite Cut", "category": "Haircuts", "duration": 75, "price": 165.00, "description": "Precision cutting with master stylist consultation" },
+        { "name": "French Balayage", "category": "Hair Color", "duration": 240, "price": 425.00, "description": "Hand-painted highlights using French techniques" },
+        { "name": "Diamond Keratin Treatment", "category": "Hair Treatments", "duration": 150, "price": 485.00, "description": "Premium smoothing with diamond-infused formula" },
+        { "name": "Caviar Facial & Neck Treatment", "category": "Advanced Facials", "duration": 90, "price": 295.00, "description": "Luxury anti-aging treatment with caviar extract" },
+        { "name": "Royal Manicure", "category": "Manicure", "duration": 60, "price": 85.00, "description": "Premium manicure with paraffin treatment" },
+        { "name": "Champagne Pedicure", "category": "Pedicure", "duration": 75, "price": 125.00, "description": "Luxury spa pedicure with champagne soak" },
+        { "name": "Bridal Couture Package", "category": "Makeup", "duration": 240, "price": 850.00, "description": "Complete bridal experience with trial session" },
+        { "name": "Lash Extensions - Volume", "category": "Eyelashes", "duration": 120, "price": 285.00, "description": "Premium Russian volume lash extensions" }
+      ],
+      "products": [
+        { "name": "Kérastase Luxury Collection", "category": "Hair", "description": "Premium French hair care line", "price": 145.00, "stock": 35 },
+        { "name": "La Mer Hair Treatment", "category": "Hair", "description": "Marine-based intensive treatment", "price": 225.00, "stock": 20 },
+        { "name": "Diamond Serum", "category": "Skin", "description": "24k gold and diamond face serum", "price": 385.00, "stock": 15 },
+        { "name": "Caviar Hand Cream", "category": "Skin", "description": "Anti-aging hand treatment", "price": 95.00, "stock": 30 },
+        { "name": "Luxury Lash Serum", "category": "Other", "description": "Premium growth serum", "price": 165.00, "stock": 25 }
+      ],
+      "staff": [
+        { "name": "Celeste Beaumont", "role": "Master Stylist", "phone": "2125557701", "email": "celeste@eclatelite.com", "specialization": "French Techniques, Balayage, Couture Styling" },
+        { "name": "Alessandro Rossi", "role": "Color Director", "phone": "2125557702", "email": "alessandro@eclatelite.com", "specialization": "Color Correction, Dimensional Color, Gray Coverage" },
+        { "name": "Natasha Volkov", "role": "Aesthetician", "phone": "2125557703", "email": "natasha@eclatelite.com", "specialization": "Advanced Facials, Microdermabrasion, Chemical Peels" },
+        { "name": "Jade Montgomery", "role": "Nail Artist", "phone": "2125557704", "email": "jade@eclatelite.com", "specialization": "Luxury Manicures, Nail Art, Gel Extensions" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?q=80&w=2069", "type": "cover", "caption": "Éclat Elite - Manhattan Luxury", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069", "type": "interior", "caption": "Private VIP styling suites", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1559599238-1c999946dd90?q=80&w=2069", "type": "interior", "caption": "Champagne pedicure lounge", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=2069", "type": "gallery", "caption": "Master styling at work", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Christopher Sterling",
+        "email": "chris@opalessencespa.com",
+        "password": "Opal2024!",
+        "phone": "3125559900"
+      },
+      "salon": {
+        "salon_name": "Opalessence Spa Boutique",
+        "address": "680 North Michigan Avenue",
+        "city": "Chicago",
+        "state": "IL",
+        "zip": "60611",
+        "country": "United States",
+        "phone": "3125559900",
+        "email": "reservations@opalessencespa.com",
+        "description": "Chicago's most sophisticated beauty destination on the Magnificent Mile. Contemporary elegance meets timeless luxury with custom treatments, artisanal products, and unparalleled service.",
+        "website": "https://opalessencespa.com",
+        "profile_picture": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Tuesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Thursday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Friday": { "enabled": true, "start": "08:00", "end": "21:00" },
+          "Saturday": { "enabled": true, "start": "08:00", "end": "20:00" },
+          "Sunday": { "enabled": true, "start": "10:00", "end": "18:00" }
+        },
+        "amenities": ["Artisan Coffee Bar", "WiFi", "Luxury Robes", "Relaxation Lounge", "Premium Magazines", "Complimentary Wine"],
+        "cancellationPolicy": "24-hour cancellation policy. Premium services require 48-hour notice.",
+        "depositPercentage": 25,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 80,
+        "pointsPerDollar": 2.5,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 800
+      },
+      "services": [
+        { "name": "Couture Haircut", "category": "Haircuts", "duration": 60, "price": 125.00, "description": "Personalized precision cutting" },
+        { "name": "Ombré Perfection", "category": "Hair Color", "duration": 210, "price": 325.00, "description": "Seamless color melting technique" },
+        { "name": "Opal Gloss Treatment", "category": "Hair Treatments", "duration": 60, "price": 95.00, "description": "Luminous shine treatment" },
+        { "name": "Gold Leaf Facial", "category": "Advanced Facials", "duration": 75, "price": 195.00, "description": "24k gold anti-aging facial" },
+        { "name": "Crystal Manicure", "category": "Manicure", "duration": 50, "price": 68.00, "description": "Gel manicure with Swarovski crystals" },
+        { "name": "Botanical Pedicure", "category": "Pedicure", "duration": 65, "price": 95.00, "description": "Organic botanical spa pedicure" },
+        { "name": "Brow Sculpting", "category": "Eyebrows", "duration": 45, "price": 75.00, "description": "Architectural brow design" },
+        { "name": "Makeup Artistry", "category": "Makeup", "duration": 90, "price": 165.00, "description": "Special occasion makeup" }
+      ],
+      "products": [
+        { "name": "Opalessence Signature Serum", "category": "Hair", "description": "Proprietary shine treatment", "price": 88.00, "stock": 40 },
+        { "name": "Botanical Hair Mask", "category": "Hair", "description": "Organic deep conditioning", "price": 65.00, "stock": 35 },
+        { "name": "24k Gold Face Oil", "category": "Skin", "description": "Luxury facial oil", "price": 145.00, "stock": 20 },
+        { "name": "Crystal Nail Kit", "category": "Nails", "description": "Professional at-home kit", "price": 55.00, "stock": 45 },
+        { "name": "Artisan Hand Balm", "category": "Skin", "description": "Handcrafted moisturizer", "price": 38.00, "stock": 50 }
+      ],
+      "staff": [
+        { "name": "Madison Brooks", "role": "Master Colorist", "phone": "3125559901", "email": "madison@opalessencespa.com", "specialization": "Ombré, Balayage, Color Theory" },
+        { "name": "Julian Park", "role": "Hair Stylist", "phone": "3125559902", "email": "julian@opalessencespa.com", "specialization": "Precision Cuts, Styling, Texture" },
+        { "name": "Sienna Davis", "role": "Aesthetician", "phone": "3125559903", "email": "sienna@opalessencespa.com", "specialization": "Facials, Brow Design, Makeup" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074", "type": "cover", "caption": "Opalessence - Magnificent Mile Beauty", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?q=80&w=2070", "type": "interior", "caption": "Contemporary styling stations", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1596704017254-9b121068ec31?q=80&w=2070", "type": "interior", "caption": "Relaxation lounge", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Penelope Sinclair",
+        "email": "penelope@pearlesthetics.com",
+        "password": "Pearl2024!",
+        "phone": "4155553344"
+      },
+      "salon": {
+        "salon_name": "Pearl Esthetics & Atelier",
+        "address": "2855 Union Street",
+        "city": "San Francisco",
+        "state": "CA",
+        "zip": "94123",
+        "country": "United States",
+        "phone": "4155553344",
+        "email": "hello@pearlesthetics.com",
+        "description": "San Francisco's hidden gem in Pacific Heights. A curated beauty experience combining European techniques, organic treatments, and modern luxury in an intimate boutique setting.",
+        "website": "https://pearlesthetics.com",
+        "profile_picture": "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?q=80&w=2074&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": false, "start": "09:00", "end": "18:00" },
+          "Tuesday": { "enabled": true, "start": "10:00", "end": "19:00" },
+          "Wednesday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Thursday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Friday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Saturday": { "enabled": true, "start": "09:00", "end": "19:00" },
+          "Sunday": { "enabled": true, "start": "11:00", "end": "17:00" }
+        },
+        "amenities": ["Organic Tea Bar", "WiFi", "Eco-Luxury Products", "Private Treatment Rooms", "Bay View Lounge"],
+        "cancellationPolicy": "48-hour cancellation notice required for all services.",
+        "depositPercentage": 25,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 75,
+        "pointsPerDollar": 2,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 750
+      },
+      "services": [
+        { "name": "Atelier Haircut", "category": "Haircuts", "duration": 70, "price": 135.00, "description": "Bespoke cutting experience" },
+        { "name": "Pearl Balayage", "category": "Hair Color", "duration": 195, "price": 295.00, "description": "Luminous hand-painted highlights" },
+        { "name": "European Smoothing", "category": "Hair Treatments", "duration": 135, "price": 265.00, "description": "Gentle keratin alternative" },
+        { "name": "Oxygen Facial", "category": "Advanced Facials", "duration": 60, "price": 155.00, "description": "Pressurized oxygen treatment" },
+        { "name": "Japanese Milk Manicure", "category": "Manicure", "duration": 55, "price": 72.00, "description": "Nourishing milk bath manicure" },
+        { "name": "Rose Quartz Pedicure", "category": "Pedicure", "duration": 70, "price": 98.00, "description": "Crystal healing pedicure" },
+        { "name": "Microblading", "category": "Eyebrows", "duration": 150, "price": 495.00, "description": "Semi-permanent brow enhancement" },
+        { "name": "Bridal Hair & Airbrush Makeup", "category": "Makeup", "duration": 180, "price": 425.00, "description": "Complete bridal beauty" }
+      ],
+      "products": [
+        { "name": "Pearl Protein Hair Elixir", "category": "Hair", "description": "Proprietary strengthening treatment", "price": 78.00, "stock": 30 },
+        { "name": "Organic Rose Oil", "category": "Skin", "description": "Cold-pressed facial oil", "price": 95.00, "stock": 25 },
+        { "name": "European Smoothing System", "category": "Hair", "description": "At-home maintenance kit", "price": 125.00, "stock": 18 },
+        { "name": "Crystal-Infused Hand Serum", "category": "Skin", "description": "Rose quartz hand treatment", "price": 48.00, "stock": 35 },
+        { "name": "Microblading Aftercare Kit", "category": "Other", "description": "Complete healing system", "price": 65.00, "stock": 40 }
+      ],
+      "staff": [
+        { "name": "Margot Rousseau", "role": "Master Stylist", "phone": "4155553301", "email": "margot@pearlesthetics.com", "specialization": "European Techniques, Balayage, Bridal" },
+        { "name": "Oliver Chen", "role": "Color Specialist", "phone": "4155553302", "email": "oliver@pearlesthetics.com", "specialization": "Natural Color, Gray Blending, Highlights" },
+        { "name": "Aria Wilson", "role": "Brow Artist", "phone": "4155553303", "email": "aria@pearlesthetics.com", "specialization": "Microblading, Brow Design, Tinting" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?q=80&w=2074", "type": "cover", "caption": "Pearl Esthetics - Pacific Heights Elegance", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?q=80&w=2070", "type": "interior", "caption": "Intimate boutique styling", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=2069", "type": "gallery", "caption": "European color techniques", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Harrison Blackwell",
+        "email": "harrison@theaterliersalon.com",
+        "password": "Atelier2024!",
+        "phone": "6172228899"
+      },
+      "salon": {
+        "salon_name": "The Atelier Salon & Spa",
+        "address": "161 Newbury Street",
+        "city": "Boston",
+        "state": "MA",
+        "zip": "02116",
+        "country": "United States",
+        "phone": "6172228899",
+        "email": "contact@theaterliersalon.com",
+        "description": "Boston's premier luxury salon on historic Newbury Street. Blending traditional craftsmanship with contemporary innovation. Where art meets beauty in every service.",
+        "website": "https://theaterliersalon.com",
+        "profile_picture": "https://images.unsplash.com/photo-1610992015732-2449b76344bc?q=80&w=2070&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "09:00", "end": "19:00" },
+          "Tuesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Thursday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Friday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Saturday": { "enabled": true, "start": "08:00", "end": "19:00" },
+          "Sunday": { "enabled": true, "start": "10:00", "end": "18:00" }
+        },
+        "amenities": ["Espresso Bar", "WiFi", "Newbury Street Shopping", "Private Suites", "Designer Products", "Valet Service"],
+        "cancellationPolicy": "24-hour notice required. Premium services require 48 hours.",
+        "depositPercentage": 20,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 70,
+        "pointsPerDollar": 2,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 700
+      },
+      "services": [
+        { "name": "Atelier Signature Cut", "category": "Haircuts", "duration": 65, "price": 115.00, "description": "Custom precision haircut" },
+        { "name": "Boston Balayage", "category": "Hair Color", "duration": 180, "price": 275.00, "description": "Hand-painted dimensional color" },
+        { "name": "Smoothing Treatment", "category": "Hair Treatments", "duration": 120, "price": 245.00, "description": "Brazilian keratin treatment" },
+        { "name": "Gentleman's Grooming", "category": "Haircuts", "duration": 50, "price": 85.00, "description": "Men's cut and styling" },
+        { "name": "HydraFacial", "category": "Advanced Facials", "duration": 60, "price": 185.00, "description": "Medical-grade facial treatment" },
+        { "name": "Luxury Gel Manicure", "category": "Manicure", "duration": 50, "price": 65.00, "description": "Long-lasting gel polish" },
+        { "name": "Signature Pedicure", "category": "Pedicure", "duration": 60, "price": 85.00, "description": "Premium spa pedicure" },
+        { "name": "Event Styling", "category": "Makeup", "duration": 120, "price": 195.00, "description": "Hair and makeup for special events" }
+      ],
+      "products": [
+        { "name": "Oribe Gold Lust Collection", "category": "Hair", "description": "Premium hair care line", "price": 125.00, "stock": 30 },
+        { "name": "Bumble and Bumble Styling Set", "category": "Hair", "description": "Professional styling products", "price": 85.00, "stock": 35 },
+        { "name": "SkinCeuticals C E Ferulic", "category": "Skin", "description": "Advanced vitamin C serum", "price": 168.00, "stock": 20 },
+        { "name": "Gentleman's Grooming Kit", "category": "Other", "description": "Complete men's care", "price": 95.00, "stock": 25 },
+        { "name": "Professional Nail Care Set", "category": "Nails", "description": "At-home manicure kit", "price": 48.00, "stock": 40 }
+      ],
+      "staff": [
+        { "name": "Charlotte Hayes", "role": "Lead Stylist", "phone": "6172228801", "email": "charlotte@theaterliersalon.com", "specialization": "Balayage, Precision Cuts, Bridal" },
+        { "name": "Benjamin Foster", "role": "Men's Grooming Specialist", "phone": "6172228802", "email": "benjamin@theaterliersalon.com", "specialization": "Men's Cuts, Beard Styling, Classic Grooming" },
+        { "name": "Sophia Martinez", "role": "Color Director", "phone": "6172228803", "email": "sophia@theaterliersalon.com", "specialization": "Color Correction, Dimensional Color, Highlights" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1610992015732-2449b76344bc?q=80&w=2070", "type": "cover", "caption": "The Atelier - Newbury Street Luxury", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074", "type": "interior", "caption": "Art-inspired styling space", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1596704017254-9b121068ec31?q=80&w=2070", "type": "gallery", "caption": "Craftsmanship in action", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Genevieve Laurent",
+        "email": "genevieve@luxenoirbeauty.com",
+        "password": "Noir2024!",
+        "phone": "5122667788"
+      },
+      "salon": {
+        "salon_name": "Luxe Noir Beauty Lounge",
+        "address": "2901 West 6th Street",
+        "city": "Austin",
+        "state": "TX",
+        "zip": "78703",
+        "country": "United States",
+        "phone": "5122667788",
+        "email": "info@luxenoirbeauty.com",
+        "description": "Austin's most sophisticated beauty sanctuary. Modern elegance with a dramatic edge. Specializing in bold color, fashion-forward cuts, and luxury spa treatments in a chic, contemporary setting.",
+        "website": "https://luxenoirbeauty.com",
+        "profile_picture": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=2069&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Tuesday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "10:00", "end": "21:00" },
+          "Thursday": { "enabled": true, "start": "10:00", "end": "21:00" },
+          "Friday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Saturday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Sunday": { "enabled": true, "start": "11:00", "end": "18:00" }
+        },
+        "amenities": ["Craft Cocktail Bar", "WiFi", "Instagram Photo Wall", "Private Styling Suites", "Modern Art Gallery", "DJ Nights"],
+        "cancellationPolicy": "24-hour cancellation policy strictly enforced.",
+        "depositPercentage": 20,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 65,
+        "pointsPerDollar": 2,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 650
+      },
+      "services": [
+        { "name": "Noir Signature Cut", "category": "Haircuts", "duration": 60, "price": 105.00, "description": "Fashion-forward precision cut" },
+        { "name": "Vivid Color Experience", "category": "Hair Color", "duration": 210, "price": 285.00, "description": "Bold, vibrant fashion colors" },
+        { "name": "Midnight Balayage", "category": "Hair Color", "duration": 195, "price": 255.00, "description": "Dark, dimensional hand-painted color" },
+        { "name": "Glass Hair Treatment", "category": "Hair Treatments", "duration": 90, "price": 145.00, "description": "Mirror-shine smoothing treatment" },
+        { "name": "Carbon Facial", "category": "Advanced Facials", "duration": 60, "price": 165.00, "description": "Laser carbon peel facial" },
+        { "name": "Matte Black Manicure", "category": "Manicure", "duration": 45, "price": 60.00, "description": "Edgy matte finish nails" },
+        { "name": "Gothic Glam Pedicure", "category": "Pedicure", "duration": 60, "price": 85.00, "description": "Luxe spa pedicure with edge" },
+        { "name": "Editorial Makeup", "category": "Makeup", "duration": 90, "price": 155.00, "description": "High-fashion makeup artistry" }
+      ],
+      "products": [
+        { "name": "Pulp Riot Color Line", "category": "Hair", "description": "Fashion color collection", "price": 65.00, "stock": 50 },
+        { "name": "Noir Styling Pomade", "category": "Hair", "description": "High-shine finish", "price": 42.00, "stock": 40 },
+        { "name": "Activated Charcoal Mask", "category": "Skin", "description": "Deep cleansing treatment", "price": 55.00, "stock": 35 },
+        { "name": "Matte Black Nail Collection", "category": "Nails", "description": "Edgy polish set", "price": 48.00, "stock": 45 },
+        { "name": "Glass Hair Serum", "category": "Hair", "description": "Mirror-shine formula", "price": 68.00, "stock": 30 }
+      ],
+      "staff": [
+        { "name": "Raven Blackwood", "role": "Creative Director", "phone": "5122667701", "email": "raven@luxenoirbeauty.com", "specialization": "Fashion Color, Editorial Cuts, Alternative Styles" },
+        { "name": "Dante Cruz", "role": "Color Specialist", "phone": "5122667702", "email": "dante@luxenoirbeauty.com", "specialization": "Vivid Colors, Balayage, Color Melting" },
+        { "name": "Luna Sterling", "role": "Makeup Artist", "phone": "5122667703", "email": "luna@luxenoirbeauty.com", "specialization": "Editorial Makeup, Special FX, Bridal" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=2069", "type": "cover", "caption": "Luxe Noir - Modern Edge Beauty", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?q=80&w=2069", "type": "interior", "caption": "Contemporary styling stations", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074", "type": "gallery", "caption": "Fashion-forward color work", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Vivienne Westbrook",
+        "email": "vivienne@serenitysuites.com",
+        "password": "Serenity2024!",
+        "phone": "7026665544"
+      },
+      "salon": {
+        "salon_name": "Serenity Suites Spa & Salon",
+        "address": "3799 Las Vegas Boulevard South",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89109",
+        "country": "United States",
+        "phone": "7026665544",
+        "email": "reservations@serenitysuites.com",
+        "description": "Las Vegas Strip's most tranquil luxury escape. Award-winning spa and salon offering the finest in hair, skin, and nail care. Where Vegas glamour meets peaceful sophistication.",
+        "website": "https://serenitysuites.com",
+        "profile_picture": "https://images.unsplash.com/photo-1596704017254-9b121068ec31?q=80&w=2070&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "08:00", "end": "22:00" },
+          "Tuesday": { "enabled": true, "start": "08:00", "end": "22:00" },
+          "Wednesday": { "enabled": true, "start": "08:00", "end": "22:00" },
+          "Thursday": { "enabled": true, "start": "08:00", "end": "23:00" },
+          "Friday": { "enabled": true, "start": "08:00", "end": "00:00" },
+          "Saturday": { "enabled": true, "start": "07:00", "end": "00:00" },
+          "Sunday": { "enabled": true, "start": "08:00", "end": "22:00" }
+        },
+        "amenities": ["Meditation Room", "Champagne Service", "Strip Views", "VIP Suites", "Luxury Spa Robes", "Complimentary Services"],
+        "cancellationPolicy": "48-hour cancellation notice required. Late cancellations charged 50%.",
+        "depositPercentage": 30,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 90,
+        "pointsPerDollar": 3,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 900
+      },
+      "services": [
+        { "name": "Vegas Glam Cut", "category": "Haircuts", "duration": 70, "price": 145.00, "description": "Show-stopping haircut and style" },
+        { "name": "Platinum Blonde Service", "category": "Hair Color", "duration": 240, "price": 425.00, "description": "Full platinum transformation" },
+        { "name": "Diamond Shine Treatment", "category": "Hair Treatments", "duration": 75, "price": 125.00, "description": "Crystal-infused shine treatment" },
+        { "name": "24k Gold Facial", "category": "Advanced Facials", "duration": 90, "price": 245.00, "description": "Luxury gold leaf facial" },
+        { "name": "Showgirl Lashes", "category": "Eyelashes", "duration": 90, "price": 185.00, "description": "Dramatic volume lash extensions" },
+        { "name": "Crystal Gel Manicure", "category": "Manicure", "duration": 60, "price": 75.00, "description": "Swarovski crystal nail art" },
+        { "name": "Platinum Pedicure", "category": "Pedicure", "duration": 75, "price": 105.00, "description": "Ultimate luxury pedicure" },
+        { "name": "Showtime Hair & Makeup", "category": "Makeup", "duration": 150, "price": 295.00, "description": "Complete glam package" }
+      ],
+      "products": [
+        { "name": "Diamond Shine Serum", "category": "Hair", "description": "Crystal-infused treatment", "price": 95.00, "stock": 30 },
+        { "name": "Platinum Blonde Toner", "category": "Hair", "description": "Professional toning system", "price": 78.00, "stock": 25 },
+        { "name": "24k Gold Face Mask", "category": "Skin", "description": "Luxury sheet masks", "price": 45.00, "stock": 50 },
+        { "name": "Showgirl Lash Serum", "category": "Other", "description": "Growth and conditioning", "price": 85.00, "stock": 35 },
+        { "name": "Crystal Nail Polish Set", "category": "Nails", "description": "Glitter and shimmer collection", "price": 55.00, "stock": 40 }
+      ],
+      "staff": [
+        { "name": "Crystal Monroe", "role": "Master Stylist", "phone": "7026665501", "email": "crystal@serenitysuites.com", "specialization": "Platinum Blonde, Extensions, Vegas Glam" },
+        { "name": "Maximus Stone", "role": "Color Expert", "phone": "7026665502", "email": "maximus@serenitysuites.com", "specialization": "Blondes, Color Correction, Highlights" },
+        { "name": "Scarlett Rose", "role": "Lash & Makeup Artist", "phone": "7026665503", "email": "scarlett@serenitysuites.com", "specialization": "Lash Extensions, Glamour Makeup, Bridal" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1596704017254-9b121068ec31?q=80&w=2070", "type": "cover", "caption": "Serenity Suites - Vegas Strip Luxury", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?q=80&w=2069", "type": "interior", "caption": "Tranquil styling suites", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1610992015732-2449b76344bc?q=80&w=2070", "type": "gallery", "caption": "Strip view styling", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Anastasia Romanov",
+        "email": "anastasia@imperialbeauty.com",
+        "password": "Imperial2024!",
+        "phone": "2025558877"
+      },
+      "salon": {
+        "salon_name": "Imperial Beauty Gallery",
+        "address": "1250 Connecticut Avenue NW",
+        "city": "Washington",
+        "state": "DC",
+        "zip": "20036",
+        "country": "United States",
+        "phone": "2025558877",
+        "email": "concierge@imperialbeauty.com",
+        "description": "Washington DC's most prestigious beauty destination. Regal elegance meets modern sophistication. Serving diplomats, politicians, and discerning clients with unparalleled luxury and discretion.",
+        "website": "https://imperialbeauty.com",
+        "profile_picture": "https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?q=80&w=2070&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "08:00", "end": "20:00" },
+          "Tuesday": { "enabled": true, "start": "08:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "08:00", "end": "21:00" },
+          "Thursday": { "enabled": true, "start": "08:00", "end": "21:00" },
+          "Friday": { "enabled": true, "start": "07:00", "end": "21:00" },
+          "Saturday": { "enabled": true, "start": "07:00", "end": "20:00" },
+          "Sunday": { "enabled": true, "start": "09:00", "end": "19:00" }
+        },
+        "amenities": ["Private VIP Entrance", "Concierge Service", "Champagne & Caviar", "Presidential Suites", "Security", "Diplomatic Parking"],
+        "cancellationPolicy": "72-hour cancellation policy for all VIP services. Standard services require 24 hours.",
+        "depositPercentage": 35,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 100,
+        "pointsPerDollar": 3.5,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 1000
+      },
+      "services": [
+        { "name": "Imperial Signature Cut", "category": "Haircuts", "duration": 80, "price": 175.00, "description": "Elite precision cutting service" },
+        { "name": "Royal Balayage", "category": "Hair Color", "duration": 210, "price": 385.00, "description": "Hand-painted luxury highlights" },
+        { "name": "Diplomatic Keratin", "category": "Hair Treatments", "duration": 150, "price": 325.00, "description": "Premium smoothing treatment" },
+        { "name": "Presidential Facial", "category": "Advanced Facials", "duration": 120, "price": 295.00, "description": "Complete anti-aging facial experience" },
+        { "name": "Royal Gel Manicure", "category": "Manicure", "duration": 60, "price": 85.00, "description": "Luxury gel manicure" },
+        { "name": "Imperial Pedicure", "category": "Pedicure", "duration": 80, "price": "115.00", "description": "Premium spa pedicure" },
+        { "name": "Diplomatic Event Styling", "category": "Makeup", "duration": 180, "price": 425.00, "description": "Complete hair and makeup for formal events" },
+        { "name": "Permanent Makeup", "category": "Eyebrows", "duration": 180, "price": 595.00, "description": "Semi-permanent cosmetic tattooing" }
+      ],
+      "products": [
+        { "name": "Imperial Hair Collection", "category": "Hair", "description": "Exclusive product line", "price": 165.00, "stock": 25 },
+        { "name": "Royal Treatment Mask", "category": "Hair", "description": "Weekly luxury treatment", "price": 95.00, "stock": 30 },
+        { "name": "Caviar Face Cream", "category": "Skin", "description": "Anti-aging luxury cream", "price": 285.00, "stock": 15 },
+        { "name": "Presidential Hand Treatment", "category": "Skin", "description": "Elite hand care system", "price": 75.00, "stock": 35 },
+        { "name": "Diplomatic Styling Set", "category": "Hair", "description": "Professional styling tools", "price": 195.00, "stock": 20 }
+      ],
+      "staff": [
+        { "name": "Evangeline Beaumont", "role": "Master Stylist", "phone": "2025558801", "email": "evangeline@imperialbeauty.com", "specialization": "Diplomatic Styling, Formal Events, Color" },
+        { "name": "Sebastian Kingsley", "role": "Color Director", "phone": "2025558802", "email": "sebastian@imperialbeauty.com", "specialization": "Gray Coverage, Natural Highlights, Color Correction" },
+        { "name": "Victoria Sinclair", "role": "Master Aesthetician", "phone": "2025558803", "email": "victoria@imperialbeauty.com", "specialization": "Advanced Facials, Permanent Makeup, Anti-Aging" },
+        { "name": "Alexander Sterling", "role": "Nail Specialist", "phone": "2025558804", "email": "alexander@imperialbeauty.com", "specialization": "Luxury Manicures, Nail Art, Spa Pedicures" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?q=80&w=2070", "type": "cover", "caption": "Imperial Beauty - Washington DC Prestige", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?q=80&w=2069", "type": "interior", "caption": "Presidential styling suites", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1596704017254-9b121068ec31?q=80&w=2070", "type": "interior", "caption": "Regal treatment rooms", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074", "type": "gallery", "caption": "Diplomatic elegance", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Maximilian Thornton",
+        "email": "max@velvetsalon.com",
+        "password": "Velvet2024!",
+        "phone": "5035554433"
+      },
+      "salon": {
+        "salon_name": "Velvet & Co. Salon",
+        "address": "1035 NW Couch Street",
+        "city": "Portland",
+        "state": "OR",
+        "zip": "97209",
+        "country": "United States",
+        "phone": "5035554433",
+        "email": "hello@velvetsalon.com",
+        "description": "Portland's most refined beauty experience in the Pearl District. Where artisan craftsmanship meets sustainable luxury. Eco-conscious elegance for the modern sophisticate.",
+        "website": "https://velvetsalon.com",
+        "profile_picture": "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": false, "start": "09:00", "end": "18:00" },
+          "Tuesday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Thursday": { "enabled": true, "start": "10:00", "end": "21:00" },
+          "Friday": { "enabled": true, "start": "10:00", "end": "21:00" },
+          "Saturday": { "enabled": true, "start": "09:00", "end": "19:00" },
+          "Sunday": { "enabled": true, "start": "10:00", "end": "18:00" }
+        },
+        "amenities": ["Local Craft Coffee", "WiFi", "Sustainable Products", "Vintage Decor", "Bike Parking", "Farm-to-Table Snacks"],
+        "cancellationPolicy": "24-hour cancellation policy. We appreciate mindful scheduling.",
+        "depositPercentage": 20,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 60,
+        "pointsPerDollar": 2,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 600
+      },
+      "services": [
+        { "name": "Artisan Cut", "category": "Haircuts", "duration": 65, "price": 95.00, "description": "Sustainable precision cutting" },
+        { "name": "Eco Balayage", "category": "Hair Color", "duration": 180, "price": 225.00, "description": "Low-ammonia hand-painted color" },
+        { "name": "Organic Smoothing", "category": "Hair Treatments", "duration": 120, "price": 195.00, "description": "Plant-based smoothing treatment" },
+        { "name": "Botanical Facial", "category": "Basic Facials", "duration": 60, "price": 125.00, "description": "Organic facial treatment" },
+        { "name": "Natural Gel Manicure", "category": "Manicure", "duration": 45, "price": 55.00, "description": "10-free gel polish" },
+        { "name": "Organic Pedicure", "category": "Pedicure", "duration": 60, "price": 75.00, "description": "Plant-based spa pedicure" },
+        { "name": "Natural Brow Design", "category": "Eyebrows", "duration": 30, "price": 45.00, "description": "Vegan brow shaping and tint" },
+        { "name": "Clean Beauty Makeup", "category": "Makeup", "duration": 60, "price": 95.00, "description": "Eco-friendly makeup application" }
+      ],
+      "products": [
+        { "name": "Sustainable Hair Care Set", "category": "Hair", "description": "Eco-friendly hair products", "price": 68.00, "stock": 40 },
+        { "name": "Organic Styling Cream", "category": "Hair", "description": "Plant-based styling", "price": 38.00, "stock": 45 },
+        { "name": "Botanical Face Oil", "category": "Skin", "description": "Organic facial treatment", "price": 58.00, "stock": 30 },
+        { "name": "Natural Nail Care Kit", "category": "Nails", "description": "10-free polish collection", "price": 45.00, "stock": 35 },
+        { "name": "Bamboo Hair Brush", "category": "Other", "description": "Sustainable styling tool", "price": 32.00, "stock": 50 }
+      ],
+      "staff": [
+        { "name": "Willow Greene", "role": "Master Stylist", "phone": "5035554401", "email": "willow@velvetsalon.com", "specialization": "Organic Color, Sustainable Cuts, Natural Texture" },
+        { "name": "River Stone", "role": "Color Specialist", "phone": "5035554402", "email": "river@velvetsalon.com", "specialization": "Eco-Friendly Color, Balayage, Gray Coverage" },
+        { "name": "Sage Morrison", "role": "Aesthetician", "phone": "5035554403", "email": "sage@velvetsalon.com", "specialization": "Organic Facials, Natural Makeup, Brow Design" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069", "type": "cover", "caption": "Velvet & Co. - Portland Artisan Beauty", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1610992015732-2449b76344bc?q=80&w=2070", "type": "interior", "caption": "Sustainable luxury styling", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1596704017254-9b121068ec31?q=80&w=2070", "type": "gallery", "caption": "Eco-conscious beauty", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Bianca Moretti",
+        "email": "bianca@maisondebeaute.com",
+        "password": "Maison2024!",
+        "phone": "2145559988"
+      },
+      "salon": {
+        "salon_name": "Maison de Beauté",
+        "address": "4021 Oak Lawn Avenue",
+        "city": "Dallas",
+        "state": "TX",
+        "zip": "75219",
+        "country": "United States",
+        "phone": "2145559988",
+        "email": "reservations@maisondebeaute.com",
+        "description": "Dallas' most exquisite French-inspired beauty house. European elegance in the heart of Highland Park. Where Parisian sophistication meets Texas luxury.",
+        "website": "https://maisondebeaute.com",
+        "profile_picture": "https://images.unsplash.com/photo-1559599238-1c999946dd90?q=80&w=2069&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "09:00", "end": "19:00" },
+          "Tuesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Thursday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Friday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Saturday": { "enabled": true, "start": "08:00", "end": "20:00" },
+          "Sunday": { "enabled": true, "start": "10:00", "end": "18:00" }
+        },
+        "amenities": ["French Pastry Bar", "WiFi", "Private Parking", "European Products", "Champagne Service", "Luxury Retail"],
+        "cancellationPolicy": "48-hour cancellation notice required for all premium services.",
+        "depositPercentage": 25,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 85,
+        "pointsPerDollar": 2.5,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 850
+      },
+      "services": [
+        { "name": "Parisian Precision Cut", "category": "Haircuts", "duration": 70, "price": 135.00, "description": "French cutting technique" },
+        { "name": "French Balayage Artistry", "category": "Hair Color", "duration": 210, "price": 345.00, "description": "Authentic French hand-painting" },
+        { "name": "L'Oréal Professionnel Treatment", "category": "Hair Treatments", "duration": 60, "price": 95.00, "description": "Salon-exclusive treatment" },
+        { "name": "European Facial", "category": "Advanced Facials", "duration": 75, "price": 175.00, "description": "Classic European facial technique" },
+        { "name": "French Manicure Deluxe", "category": "Manicure", "duration": 55, "price": 70.00, "description": "Classic French manicure" },
+        { "name": "Parisian Pedicure", "category": "Pedicure", "duration": 70, "price": 95.00, "description": "Luxury French-style pedicure" },
+        { "name": "Chignon & Makeup", "category": "Makeup", "duration": 120, "price": 225.00, "description": "French updo and makeup" },
+        { "name": "Brow Architecture", "category": "Eyebrows", "duration": 40, "price": 65.00, "description": "Parisian brow design" }
+      ],
+      "products": [
+        { "name": "Kérastase Luxury Line", "category": "Hair", "description": "Premium French hair care", "price": 125.00, "stock": 30 },
+        { "name": "L'Oréal Professionnel Series", "category": "Hair", "description": "Salon-exclusive products", "price": 85.00, "stock": 40 },
+        { "name": "French Facial Serum", "category": "Skin", "description": "Parisian skincare", "price": 145.00, "stock": 25 },
+        { "name": "Luxury Hand Cream", "category": "Skin", "description": "French hand treatment", "price": 48.00, "stock": 45 },
+        { "name": "French Polish Collection", "category": "Nails", "description": "Classic nail colors", "price": 55.00, "stock": 35 }
+      ],
+      "staff": [
+        { "name": "Amélie Dubois", "role": "Master Stylist", "phone": "2145559901", "email": "amelie@maisondebeaute.com", "specialization": "French Techniques, Balayage, Bridal" },
+        { "name": "Laurent Mercier", "role": "Color Director", "phone": "2145559902", "email": "laurent@maisondebeaute.com", "specialization": "French Balayage, Blonde Specialists, Color Theory" },
+        { "name": "Isabelle Fontaine", "role": "Aesthetician", "phone": "2145559903", "email": "isabelle@maisondebeaute.com", "specialization": "European Facials, Brow Design, Makeup Artistry" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1559599238-1c999946dd90?q=80&w=2069", "type": "cover", "caption": "Maison de Beauté - French Luxury in Dallas", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?q=80&w=2069", "type": "interior", "caption": "Parisian-inspired pedicure spa", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?q=80&w=2070", "type": "interior", "caption": "European elegance", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069", "type": "gallery", "caption": "French artistry", "is_primary": false }
+      ]
     }
   ]
 }
