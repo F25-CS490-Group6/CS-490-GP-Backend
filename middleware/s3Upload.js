@@ -30,11 +30,11 @@ const fileFilter = (req, file, cb) => {
 };
 
 // Create S3 upload for salon images
+// Note: We don't use ACL here - public access is granted via bucket policy
 const salonUpload = multer({
   storage: multerS3({
     s3: s3Client,
     bucket: BUCKET_NAME,
-    acl: "public-read",
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: (req, file, cb) => {
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -51,7 +51,6 @@ const serviceUpload = multer({
   storage: multerS3({
     s3: s3Client,
     bucket: BUCKET_NAME,
-    acl: "public-read",
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: (req, file, cb) => {
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -68,7 +67,6 @@ const galleryUpload = multer({
   storage: multerS3({
     s3: s3Client,
     bucket: BUCKET_NAME,
-    acl: "public-read",
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: (req, file, cb) => {
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
