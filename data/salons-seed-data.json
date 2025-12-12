@@ -86,7 +86,7 @@
         "email": "hello@urbansalon.com",
         "description": "Contemporary salon specializing in cutting-edge styles and modern techniques. From trendy cuts to vibrant color, we bring your hair vision to life with expert precision and creativity.",
         "website": "https://urbanedgesalon.com",
-        "profile_picture": "https://images.unsplash.com/photo-1599351431613-4e4446da4e14?q=80&w=2071&auto=format&fit=crop"
+        "profile_picture": "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?q=80&w=2070&auto=format&fit=crop"
       },
       "settings": {
         "businessHours": {
@@ -271,6 +271,278 @@
         { "url": "https://images.unsplash.com/photo-1610992015732-2449b76344bc?q=80&w=2070", "type": "interior", "caption": "Modern eco-friendly salon", "is_primary": false },
         { "url": "https://images.unsplash.com/photo-1519415510236-718bdfcd89c8?q=80&w=2070", "type": "interior", "caption": "Wellness spa area", "is_primary": false },
         { "url": "https://images.unsplash.com/photo-1519415510236-718bdfcd89c8?q=80&w=2074", "type": "gallery", "caption": "Sustainable beauty treatments", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Victoria Sterling",
+        "email": "victoria@glamourstudio.com",
+        "password": "Glamour2024!",
+        "phone": "7028889900"
+      },
+      "salon": {
+        "salon_name": "Glamour Studio",
+        "address": "3500 Las Vegas Boulevard",
+        "city": "Las Vegas",
+        "state": "NV",
+        "zip": "89109",
+        "country": "United States",
+        "phone": "7028889900",
+        "email": "hello@glamourstudio.com",
+        "description": "Las Vegas' premier luxury salon offering world-class hair styling, extensions, and beauty services. Step into glamour with our celebrity-inspired treatments.",
+        "website": "https://glamourstudio.com",
+        "profile_picture": "https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?q=80&w=2070&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "10:00", "end": "22:00" },
+          "Tuesday": { "enabled": true, "start": "10:00", "end": "22:00" },
+          "Wednesday": { "enabled": true, "start": "10:00", "end": "22:00" },
+          "Thursday": { "enabled": true, "start": "10:00", "end": "23:00" },
+          "Friday": { "enabled": true, "start": "10:00", "end": "23:00" },
+          "Saturday": { "enabled": true, "start": "09:00", "end": "23:00" },
+          "Sunday": { "enabled": true, "start": "09:00", "end": "22:00" }
+        },
+        "amenities": ["Champagne Bar", "WiFi", "VIP Lounges", "Celebrity Stylists", "Complimentary Valet"],
+        "cancellationPolicy": "48-hour cancellation required for all services.",
+        "depositPercentage": 30,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 100,
+        "pointsPerDollar": 5,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 1000
+      },
+      "services": [
+        { "name": "Glamour Cut & Style", "category": "Haircuts", "duration": 75, "price": 125.00, "description": "Red carpet-ready haircut and styling" },
+        { "name": "Celebrity Color", "category": "Hair Color", "duration": 210, "price": 350.00, "description": "A-list color transformation" },
+        { "name": "Luxury Hair Extensions", "category": "Hair Treatments", "duration": 240, "price": 650.00, "description": "Premium tape-in or fusion extensions" },
+        { "name": "VIP Blowout", "category": "Hair Treatments", "duration": 60, "price": 95.00, "description": "Showgirl-worthy styling" },
+        { "name": "Bridal Glam Package", "category": "Makeup", "duration": 240, "price": 650.00, "description": "Complete wedding hair, makeup, and trial" },
+        { "name": "Makeup Artistry", "category": "Makeup", "duration": 90, "price": 165.00, "description": "Professional makeup application" },
+        { "name": "Luxury Gel Manicure", "category": "Manicure", "duration": 60, "price": 75.00, "description": "High-end gel manicure with nail art" },
+        { "name": "Showgirl Lashes", "category": "Eyebrows", "duration": 45, "price": 85.00, "description": "Dramatic eyelash extensions" }
+      ],
+      "products": [
+        { "name": "Hair Extension Care Kit", "category": "Hair", "description": "Premium extension maintenance set", "price": 145.00, "stock": 15 },
+        { "name": "Luxury Volume Spray", "category": "Hair", "description": "Professional volume and texture spray", "price": 68.00, "stock": 25 },
+        { "name": "Red Carpet Ready Serum", "category": "Hair", "description": "High-shine finishing serum", "price": 85.00, "stock": 20 },
+        { "name": "Glamour Makeup Palette", "category": "Other", "description": "Professional makeup collection", "price": 125.00, "stock": 12 },
+        { "name": "Crystal Nail File Set", "category": "Nails", "description": "Luxury crystal nail files", "price": 45.00, "stock": 30 }
+      ],
+      "staff": [
+        { "name": "Angelica Rose", "role": "Hair Stylist", "phone": "7028889901", "email": "angelica@glamourstudio.com", "specialization": "Extensions, Updos, Bridal Styling" },
+        { "name": "Dante Russo", "role": "Colorist", "phone": "7028889902", "email": "dante@glamourstudio.com", "specialization": "Celebrity Color, Balayage, Corrective Color" },
+        { "name": "Bianca Laurent", "role": "Nail Artist", "phone": "7028889903", "email": "bianca@glamourstudio.com", "specialization": "3D Nail Art, Gel Extensions, Luxury Manicures" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?q=80&w=2070", "type": "cover", "caption": "Glamour Studio - Las Vegas Luxury", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069", "type": "interior", "caption": "VIP styling stations", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074", "type": "interior", "caption": "Luxury salon interior", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=2069", "type": "gallery", "caption": "Red carpet styling", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "James Mitchell",
+        "email": "james@metrocuts.com",
+        "password": "Metro2024!",
+        "phone": "6175557788"
+      },
+      "salon": {
+        "salon_name": "Metro Cuts Boston",
+        "address": "88 Newbury Street",
+        "city": "Boston",
+        "state": "MA",
+        "zip": "02116",
+        "country": "United States",
+        "phone": "6175557788",
+        "email": "info@metrocuts.com",
+        "description": "Boston's premier barbershop and salon blending classic techniques with modern style. Exceptional grooming for the contemporary professional.",
+        "website": "https://metrocuts.com",
+        "profile_picture": "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=2070&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "09:00", "end": "19:00" },
+          "Tuesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Thursday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Friday": { "enabled": true, "start": "09:00", "end": "21:00" },
+          "Saturday": { "enabled": true, "start": "08:00", "end": "20:00" },
+          "Sunday": { "enabled": true, "start": "10:00", "end": "18:00" }
+        },
+        "amenities": ["Craft Beer Bar", "WiFi", "Sports TV", "Shoe Shine", "Complimentary Coffee"],
+        "cancellationPolicy": "12-hour cancellation notice preferred.",
+        "depositPercentage": 0,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 30,
+        "pointsPerDollar": 1.5,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 200
+      },
+      "services": [
+        { "name": "Executive Haircut", "category": "Haircuts", "duration": 45, "price": 65.00, "description": "Professional men's cut" },
+        { "name": "Classic Hot Towel Shave", "category": "Beard Trim", "duration": 45, "price": 55.00, "description": "Traditional straight razor shave" },
+        { "name": "Beard Trim & Shaping", "category": "Beard Trim", "duration": 30, "price": 35.00, "description": "Expert beard grooming" },
+        { "name": "Haircut & Beard Combo", "category": "Haircuts", "duration": 60, "price": 85.00, "description": "Complete grooming package" },
+        { "name": "Gray Blending", "category": "Hair Color", "duration": 45, "price": 55.00, "description": "Natural gray coverage for men" },
+        { "name": "Scalp Treatment", "category": "Hair Treatments", "duration": 30, "price": 45.00, "description": "Refreshing scalp therapy" },
+        { "name": "Kids Cut", "category": "Haircuts", "duration": 30, "price": 35.00, "description": "Haircut for children under 12" },
+        { "name": "Women's Cut & Style", "category": "Haircuts", "duration": 60, "price": 75.00, "description": "Modern women's haircut" }
+      ],
+      "products": [
+        { "name": "Premium Beard Oil", "category": "Other", "description": "Conditioning beard oil", "price": 32.00, "stock": 40 },
+        { "name": "Matte Pomade", "category": "Hair", "description": "Strong hold matte finish", "price": 28.00, "stock": 50 },
+        { "name": "Classic Shave Kit", "category": "Other", "description": "Complete shaving set", "price": 75.00, "stock": 20 },
+        { "name": "Men's Shampoo & Conditioner", "category": "Hair", "description": "Daily grooming essentials", "price": 42.00, "stock": 35 },
+        { "name": "Scalp Tonic", "category": "Hair", "description": "Invigorating scalp treatment", "price": 38.00, "stock": 25 }
+      ],
+      "staff": [
+        { "name": "Thomas Sullivan", "role": "Barber", "phone": "6175557701", "email": "thomas@metrocuts.com", "specialization": "Classic Cuts, Hot Shaves, Beard Styling" },
+        { "name": "Rachel Kim", "role": "Hair Stylist", "phone": "6175557702", "email": "rachel@metrocuts.com", "specialization": "Modern Cuts, Coloring, Styling" },
+        { "name": "Miguel Santos", "role": "Barber", "phone": "6175557703", "email": "miguel@metrocuts.com", "specialization": "Fades, Tapers, Contemporary Grooming" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=2070", "type": "cover", "caption": "Metro Cuts Boston - Modern Barbershop", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=2070", "type": "interior", "caption": "Classic barber chairs", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?q=80&w=2070", "type": "interior", "caption": "Modern grooming stations", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1622286346003-c3d0e6d3a5b0?q=80&w=2070", "type": "gallery", "caption": "Professional grooming", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Olivia Harper",
+        "email": "olivia@chicsalon.com",
+        "password": "Chic2024!",
+        "phone": "2065556677"
+      },
+      "salon": {
+        "salon_name": "Chic Salon Seattle",
+        "address": "1200 Pine Street",
+        "city": "Seattle",
+        "state": "WA",
+        "zip": "98101",
+        "country": "United States",
+        "phone": "2065556677",
+        "email": "hello@chicsalon.com",
+        "description": "Seattle's boutique salon featuring organic hair care, innovative color techniques, and personalized styling. Where Pacific Northwest style meets urban sophistication.",
+        "website": "https://chicsalon.com",
+        "profile_picture": "https://images.unsplash.com/photo-1559599238-1c999946dd90?q=80&w=2069&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": false, "start": "09:00", "end": "18:00" },
+          "Tuesday": { "enabled": true, "start": "09:00", "end": "19:00" },
+          "Wednesday": { "enabled": true, "start": "09:00", "end": "19:00" },
+          "Thursday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Friday": { "enabled": true, "start": "09:00", "end": "20:00" },
+          "Saturday": { "enabled": true, "start": "08:00", "end": "18:00" },
+          "Sunday": { "enabled": true, "start": "10:00", "end": "17:00" }
+        },
+        "amenities": ["Local Coffee", "WiFi", "Organic Products", "Bike Parking", "Rain Gear Storage"],
+        "cancellationPolicy": "24-hour notice required. Fees apply for late cancellations.",
+        "depositPercentage": 15,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 45,
+        "pointsPerDollar": 2,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 400
+      },
+      "services": [
+        { "name": "Signature Cut", "category": "Haircuts", "duration": 60, "price": 85.00, "description": "Customized precision haircut" },
+        { "name": "Organic Color", "category": "Hair Color", "duration": 150, "price": 185.00, "description": "Ammonia-free hair coloring" },
+        { "name": "Balayage Highlight", "category": "Hair Color", "duration": 180, "price": 225.00, "description": "Hand-painted highlights" },
+        { "name": "Deep Conditioning Treatment", "category": "Hair Treatments", "duration": 45, "price": 65.00, "description": "Intensive moisture therapy" },
+        { "name": "Beach Wave Perm", "category": "Hair Treatments", "duration": 120, "price": 165.00, "description": "Effortless wave texture" },
+        { "name": "Styling & Blowout", "category": "Hair Treatments", "duration": 45, "price": 55.00, "description": "Professional styling" },
+        { "name": "Keratin Express", "category": "Hair Treatments", "duration": 90, "price": 185.00, "description": "Quick smoothing treatment" },
+        { "name": "Color Refresh", "category": "Hair Color", "duration": 60, "price": 75.00, "description": "Gloss and toner refresh" }
+      ],
+      "products": [
+        { "name": "Organic Shampoo & Conditioner", "category": "Hair", "description": "Plant-based hair care", "price": 56.00, "stock": 40 },
+        { "name": "Sea Salt Texturizing Spray", "category": "Hair", "description": "Natural beach waves", "price": 34.00, "stock": 35 },
+        { "name": "Argan Oil Treatment", "category": "Hair", "description": "Pure argan oil", "price": 48.00, "stock": 30 },
+        { "name": "Color-Safe Styling Cream", "category": "Hair", "description": "Protects colored hair", "price": 38.00, "stock": 28 },
+        { "name": "Eco-Friendly Hair Brush", "category": "Other", "description": "Sustainable bamboo brush", "price": 32.00, "stock": 25 }
+      ],
+      "staff": [
+        { "name": "Emma Clarke", "role": "Hair Stylist", "phone": "2065556601", "email": "emma@chicsalon.com", "specialization": "Organic Color, Balayage, Texture" },
+        { "name": "Noah Patterson", "role": "Colorist", "phone": "2065556602", "email": "noah@chicsalon.com", "specialization": "Color Correction, Fashion Colors, Highlights" },
+        { "name": "Lily Chen", "role": "Hair Stylist", "phone": "2065556603", "email": "lily@chicsalon.com", "specialization": "Precision Cuts, Keratin, Styling" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1559599238-1c999946dd90?q=80&w=2069", "type": "cover", "caption": "Chic Salon Seattle - Organic Beauty", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1596704017254-9b121068ec31?q=80&w=2070", "type": "interior", "caption": "Natural light styling area", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1610992015732-2449b76344bc?q=80&w=2070", "type": "interior", "caption": "Organic product bar", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=2069", "type": "gallery", "caption": "Natural color work", "is_primary": false }
+      ]
+    },
+    {
+      "owner": {
+        "full_name": "Daniel Romano",
+        "email": "daniel@prestige-miami.com",
+        "password": "Prestige2024!",
+        "phone": "7863334455"
+      },
+      "salon": {
+        "salon_name": "Prestige Miami",
+        "address": "1455 Ocean Drive",
+        "city": "Miami",
+        "state": "FL",
+        "zip": "33139",
+        "country": "United States",
+        "phone": "7863334455",
+        "email": "contact@prestige-miami.com",
+        "description": "South Beach's most exclusive salon offering Brazilian Blowouts, vivid colors, and beach-ready styling. Where Miami glamour meets professional excellence.",
+        "website": "https://prestige-miami.com",
+        "profile_picture": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=2069&auto=format&fit=crop"
+      },
+      "settings": {
+        "businessHours": {
+          "Monday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Tuesday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Wednesday": { "enabled": true, "start": "10:00", "end": "20:00" },
+          "Thursday": { "enabled": true, "start": "10:00", "end": "21:00" },
+          "Friday": { "enabled": true, "start": "10:00", "end": "22:00" },
+          "Saturday": { "enabled": true, "start": "09:00", "end": "22:00" },
+          "Sunday": { "enabled": true, "start": "11:00", "end": "20:00" }
+        },
+        "amenities": ["Tropical Drinks", "WiFi", "Ocean Views", "VIP Parking", "Beach-Ready Styling"],
+        "cancellationPolicy": "24-hour cancellation notice required for all appointments.",
+        "depositPercentage": 20,
+        "loyaltyEnabled": true,
+        "pointsPerVisit": 60,
+        "pointsPerDollar": 2.5,
+        "redeemRate": 0.01,
+        "minPointsRedeem": 600
+      },
+      "services": [
+        { "name": "Miami Beach Cut", "category": "Haircuts", "duration": 50, "price": 95.00, "description": "Stylish beach-ready haircut" },
+        { "name": "Tropical Color", "category": "Hair Color", "duration": 180, "price": 265.00, "description": "Vibrant sun-kissed color" },
+        { "name": "Brazilian Blowout", "category": "Hair Treatments", "duration": 150, "price": 325.00, "description": "Authentic Brazilian smoothing" },
+        { "name": "Beach Wave Styling", "category": "Hair Treatments", "duration": 45, "price": 68.00, "description": "Effortless beach waves" },
+        { "name": "Vivid Fashion Color", "category": "Hair Color", "duration": 210, "price": 295.00, "description": "Bold fashion colors" },
+        { "name": "Keratin Treatment", "category": "Hair Treatments", "duration": 135, "price": 285.00, "description": "Frizz-free smoothing treatment" },
+        { "name": "Express Blowout", "category": "Hair Treatments", "duration": 40, "price": 58.00, "description": "Quick South Beach styling" },
+        { "name": "Color Gloss", "category": "Hair Color", "duration": 45, "price": 72.00, "description": "High-shine color treatment" }
+      ],
+      "products": [
+        { "name": "Brazilian Blowout Professional Set", "category": "Hair", "description": "At-home smoothing system", "price": 165.00, "stock": 18 },
+        { "name": "Beach Texture Spray", "category": "Hair", "description": "Sea salt spray for waves", "price": 36.00, "stock": 45 },
+        { "name": "UV Protection Hair Serum", "category": "Hair", "description": "Sun protection for hair", "price": 48.00, "stock": 30 },
+        { "name": "Tropical Hair Mask", "category": "Hair", "description": "Deep conditioning treatment", "price": 54.00, "stock": 25 },
+        { "name": "Color-Enhancing Shampoo", "category": "Hair", "description": "Vivid color maintenance", "price": 42.00, "stock": 35 }
+      ],
+      "staff": [
+        { "name": "Gabriela Silva", "role": "Colorist", "phone": "7863334401", "email": "gabriela@prestige-miami.com", "specialization": "Brazilian Blowout, Vivid Colors, Balayage" },
+        { "name": "Carlos Mendez", "role": "Hair Stylist", "phone": "7863334402", "email": "carlos@prestige-miami.com", "specialization": "Beach Styling, Cuts, Keratin Treatments" },
+        { "name": "Isabella Torres", "role": "Hair Stylist", "phone": "7863334403", "email": "isabella@prestige-miami.com", "specialization": "Fashion Colors, Extensions, Special Events" }
+      ],
+      "photos": [
+        { "url": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=2069", "type": "cover", "caption": "Prestige Miami - South Beach Glamour", "is_primary": true },
+        { "url": "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?q=80&w=2069", "type": "interior", "caption": "Oceanview styling stations", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074", "type": "interior", "caption": "Tropical salon atmosphere", "is_primary": false },
+        { "url": "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?q=80&w=2074", "type": "gallery", "caption": "Beach-ready hair", "is_primary": false }
       ]
     }
   ]
