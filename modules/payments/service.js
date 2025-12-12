@@ -1057,52 +1057,8 @@ exports.createUnifiedCheckout = async (user_id, salon_id, cart_id, points_to_red
     [cart_id]
   );
 
-  // 9. Send email notification
-  const itemsList = cartItems.map(item =>
-    `<li><strong>${item.item_name}</strong> ${item.type === 'product' ? `(x${item.quantity})` : ''} - $${(item.price * item.quantity).toFixed(2)}</li>`
-  ).join('');
-
-  const emailHtml = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #333;">Complete Your Payment</h2>
-      <p>Hi ${user.full_name},</p>
-      <p>Your order is ready! Please complete your payment to confirm:</p>
-
-      <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <p><strong>Salon:</strong> ${salon.salon_name}</p>
-        <p><strong>Items:</strong></p>
-        <ul style="margin: 10px 0; padding-left: 20px;">
-          ${itemsList}
-        </ul>
-        ${totalDiscount > 0 ? `
-          <p style="margin-top: 15px;"><strong>Subtotal:</strong> $${subtotal.toFixed(2)}</p>
-          ${loyaltyDiscount > 0 ? `<p style="color: #28a745;"><strong>Loyalty Discount:</strong> -$${loyaltyDiscount.toFixed(2)} (${actualPointsRedeemed} points)</p>` : ''}
-          ${promoDiscount > 0 ? `<p style="color: #28a745;"><strong>Promo Code (${promo_code}):</strong> -$${promoDiscount.toFixed(2)}</p>` : ''}
-        ` : ''}
-        <p style="font-size: 18px; font-weight: bold; margin-top: 15px;">
-          <strong>Total:</strong> $${total.toFixed(2)}
-        </p>
-      </div>
-
-      <a href="${session.url}"
-         style="display: inline-block; background: #5469d4; color: white; padding: 14px 28px;
-                text-decoration: none; border-radius: 6px; font-weight: bold;">
-        Pay Now - $${total.toFixed(2)}
-      </a>
-
-      <p style="color: #666; font-size: 13px; margin-top: 20px;">
-        This link expires in 24 hours.
-      </p>
-
-      <p>Thank you,<br>${salon.salon_name}</p>
-    </div>
-  `;
-
-  await sendEmail(
-    user.email,
-    `Payment Required - ${salon.salon_name} Order`,
-    emailHtml
-  );
+  // Email notification removed - customer is being redirected to payment page
+  // Confirmation email will be sent after successful payment (in confirmUnifiedCheckout)
 
   return {
     payment_id: result.insertId,
