@@ -1167,6 +1167,50 @@ exports.confirmUnifiedCheckout = async (checkoutSessionId, paymentIntentId) => {
     }
   }
 
+  // 6b. Send confirmation email to customer
+  try {
+    const { sendEmail } = require("../../config/mailer");
+    const [[user]] = await db.query(
+      `SELECT u.full_name, u.email, s.name as salon_name, s.address as salon_address
+       FROM users u
+       JOIN salons s ON s.salon_id = ?
+       WHERE u.user_id = ?`,
+      [salon_id, user_id]
+    );
+    
+    if (user && user.email) {
+      // Build items list for email
+      let itemsList = '';
+      for (const item of cartItems) {
+        if (item.type === 'product') {
+          const [[product]] = await db.query('SELECT name FROM products WHERE product_id = ?', [item.product_id]);
+          itemsList += `<li>${product?.name || 'Product'} x${item.quantity} - $${(item.price * item.quantity).toFixed(2)}</li>`;
+        } else if (item.type === 'service') {
+          const [[service]] = await db.query('SELECT custom_name FROM services WHERE service_id = ?', [item.service_id]);
+          itemsList += `<li>${service?.custom_name || 'Service'} - $${item.price.toFixed(2)}</li>`;
+        }
+      }
+      
+      const emailHtml = `
+        <h2>Order Confirmed!</h2>
+        <p>Dear ${user.full_name || "Customer"},</p>
+        <p>Your payment has been received and your order at <b>${user.salon_name}</b> is now confirmed.</p>
+        <h3>Order Details:</h3>
+        <ul>
+          ${itemsList}
+        </ul>
+        <p><b>Total Amount Paid:</b> $${payment?.amount?.toFixed(2) || '0.00'}</p>
+        <p><b>Salon Address:</b> ${user.salon_address || "N/A"}</p>
+        <p>Thank you for your purchase!</p>
+      `;
+      await sendEmail(user.email, "Your Order is Confirmed!", emailHtml);
+      console.log(`[Payment] Confirmation email sent to ${user.email}`);
+    }
+  } catch (emailErr) {
+    console.error("[Payment] Error sending confirmation email:", emailErr);
+    // Don't fail if email fails
+  }
+
   // 7. Delete cart items and mark cart as checked out
   await db.query(
     `DELETE FROM cart_items WHERE cart_id = ?`,
