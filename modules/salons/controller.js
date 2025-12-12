@@ -740,9 +740,11 @@ exports.getSalonByIdPublic = async (req, res) => {
     );
 
     // Get backend URL from environment or construct from request
+    // Use x-forwarded-proto header if available (for AWS load balancer/proxy)
+    const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
     const backendUrl = process.env.BACKEND_URL || 
                       process.env.API_URL || 
-                      (req.protocol + '://' + req.get('host'));
+                      (protocol + '://' + req.get('host'));
 
     // Format photo URLs to be absolute if they're relative
     const formattedPhotos = (galleryPhotos || []).map(photo => ({
