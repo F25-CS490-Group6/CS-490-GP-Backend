@@ -77,7 +77,7 @@ exports.setLoyaltyConfig = async (salon_id, config) => {
     loyalty_enabled = true,
     points_per_dollar = 1.00,
     points_per_visit = 10,
-    redeem_rate = 0.01,
+    redeem_rate = 100,
     min_points_redeem = 100
   } = config;
 
@@ -111,7 +111,7 @@ exports.getLoyaltyConfig = async (salon_id) => {
       loyalty_enabled: rows[0].loyalty_enabled === 1 || rows[0].loyalty_enabled === true,
       points_per_dollar: parseFloat(rows[0].points_per_dollar) || 1.00,
       points_per_visit: parseInt(rows[0].points_per_visit) || 10,
-      redeem_rate: parseFloat(rows[0].redeem_rate) || 0.01,
+      redeem_rate: parseFloat(rows[0].redeem_rate) || 100,
       min_points_redeem: parseInt(rows[0].min_points_redeem) || 100
     };
   }
@@ -121,7 +121,7 @@ exports.getLoyaltyConfig = async (salon_id) => {
     loyalty_enabled: true,
     points_per_dollar: 1.00,
     points_per_visit: 10,
-    redeem_rate: 0.01,
+    redeem_rate: 100,
     min_points_redeem: 100
   };
 };
@@ -152,6 +152,7 @@ exports.awardPointsForPurchase = async (user_id, salon_id, amount) => {
 
 /**
  * Calculate discount amount from points
+ * redeem_rate = points per $1 discount (e.g., 100 points = $1)
  */
 exports.calculateDiscount = async (salon_id, points_to_redeem) => {
   const config = await this.getLoyaltyConfig(salon_id);
@@ -160,9 +161,9 @@ exports.calculateDiscount = async (salon_id, points_to_redeem) => {
     throw new Error(`Minimum ${config.min_points_redeem} points required to redeem`);
   }
 
-  // Ensure redeem_rate is a number (it might come from DB as string)
-  const redeemRate = parseFloat(config.redeem_rate) || 0.01;
-  const discount = points_to_redeem * redeemRate;
+  // redeem_rate = points needed per $1 discount (e.g., 100 means 100 points = $1)
+  const pointsPerDollar = parseFloat(config.redeem_rate) || 100;
+  const discount = points_to_redeem / pointsPerDollar;
   return parseFloat(discount.toFixed(2));
 };
 

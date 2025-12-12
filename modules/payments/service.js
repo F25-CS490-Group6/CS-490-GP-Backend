@@ -54,7 +54,7 @@ exports.createCheckoutAndNotify = async (user_id, amount, appointment_id, points
       if (discount > subtotal) {
         discount = subtotal;
         const config = await loyaltyService.getLoyaltyConfig(effective_salon_id);
-        actualPointsRedeemed = Math.ceil(discount / config.redeem_rate);
+        actualPointsRedeemed = Math.ceil(discount * config.redeem_rate);
       } else {
         actualPointsRedeemed = points_to_redeem;
       }
@@ -980,7 +980,7 @@ exports.createUnifiedCheckout = async (user_id, salon_id, cart_id, points_to_red
       if (loyaltyDiscount > subtotal) {
         loyaltyDiscount = subtotal;
         const config = await loyaltyService.getLoyaltyConfig(salon_id);
-        actualPointsRedeemed = Math.ceil(loyaltyDiscount / config.redeem_rate);
+        actualPointsRedeemed = Math.ceil(loyaltyDiscount * config.redeem_rate);
       } else {
         actualPointsRedeemed = points_to_redeem;
       }
@@ -1371,7 +1371,7 @@ exports.createPayInStorePayment = async (user_id, amount, appointment_id, points
         finalAmount = 0;
         // Recalculate points needed for this discount
         const config = await loyaltyService.getLoyaltyConfig(resolvedSalonId);
-        actualPointsRedeemed = Math.ceil(amount / config.redeem_rate);
+        actualPointsRedeemed = Math.ceil(amount * config.redeem_rate);
       } else {
         finalAmount = amount - discount;
         actualPointsRedeemed = points_to_redeem;
