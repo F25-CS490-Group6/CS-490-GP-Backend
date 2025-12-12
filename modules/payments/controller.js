@@ -1,5 +1,6 @@
 //payments/controller.js
 const paymentService = require("./service");
+const { db } = require("../../config/database");
 
 /**
  * Create checkout session and send payment email
