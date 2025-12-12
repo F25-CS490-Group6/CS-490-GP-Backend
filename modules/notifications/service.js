@@ -260,7 +260,7 @@ exports.processNotificationQueue = async () => {
             
             const emailHtml = `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #333;">🔔 Appointment Reminder</h2>
+                <h2 style="color: #333;">Appointment Reminder</h2>
                 <p>Hi ${user.full_name || 'there'},</p>
                 <p>${queued.message}</p>
                 <p style="margin-top: 20px;">We look forward to seeing you!</p>
@@ -272,7 +272,7 @@ exports.processNotificationQueue = async () => {
             
             await sendEmail(
               user.email,
-              '🔔 Appointment Reminder',
+              'Appointment Reminder',
               emailHtml
             );
             
