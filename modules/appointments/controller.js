@@ -384,28 +384,46 @@ exports.createAppointment = async (req, res) => {
 
     const priceValue = Number(price || 0).toFixed(2);
 
-    // Send confirmation email only for confirmed appointments (don't fail if email fails)
+    // Check if staff/owner created the appointment (not the customer themselves)
+    const isStaffOrOwnerCreating = (role === "staff" || role === "owner") && userId !== tokenUserId;
+
+    // If staff/owner created the appointment, send payment email with Stripe link
+    // Otherwise, send regular confirmation email
     if (finalStatus === "confirmed") {
       try {
-        const emailHtml = `
-          <h2>Appointment Confirmed</h2>
-          <p>Dear ${firstName || customerFullName || "Customer"},</p>
-          <p>Your appointment at <b>${getSalonName(
-            salonInfo
-          )}</b> is confirmed.</p>
-          <ul>
-            <li><b>Services:</b> ${serviceSummary}</li>
-            <li><b>Time:</b> ${new Date(
-              finalScheduledTime
-            ).toLocaleString()}</li>
-            <li><b>Total Price:</b> $${Number(price).toFixed(2)}</li>
-          </ul>
-          <p><b>Salon Address:</b> ${salonInfo?.address || "N/A"}</p>
-          <p>We look forward to seeing you!</p>
-        `;
-        await sendEmail(userEmail, "Your Appointment is Confirmed!", emailHtml);
+        if (isStaffOrOwnerCreating && price > 0) {
+          // Staff/Owner created - send payment email with Stripe link
+          const paymentService = require("../payments/service");
+          const paymentResult = await paymentService.createCheckoutAndNotify(
+            userId,
+            parseFloat(price || 0),
+            appointmentId,
+            0, // No loyalty points for staff-created appointments
+            resolvedSalonId
+          );
+          console.log("Payment email sent to customer:", userEmail, "Payment link:", paymentResult.payment_link);
+        } else {
+          // Customer created or no price - send regular confirmation email
+          const emailHtml = `
+            <h2>Appointment Confirmed</h2>
+            <p>Dear ${firstName || customerFullName || "Customer"},</p>
+            <p>Your appointment at <b>${getSalonName(
+              salonInfo
+            )}</b> is confirmed.</p>
+            <ul>
+              <li><b>Services:</b> ${serviceSummary}</li>
+              <li><b>Time:</b> ${new Date(
+                finalScheduledTime
+              ).toLocaleString()}</li>
+              <li><b>Total Price:</b> $${Number(price).toFixed(2)}</li>
+            </ul>
+            <p><b>Salon Address:</b> ${salonInfo?.address || "N/A"}</p>
+            <p>We look forward to seeing you!</p>
+          `;
+          await sendEmail(userEmail, "Your Appointment is Confirmed!", emailHtml);
+        }
       } catch (emailError) {
-        console.error("Error sending confirmation email:", emailError);
+        console.error("Error sending confirmation/payment email:", emailError);
         // Don't fail appointment creation if email fails
       }
     }
