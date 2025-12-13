@@ -7,6 +7,7 @@ const salonService = require("../salons/service");
 function getSalonName(salonInfo) {
   return salonInfo?.name || salonInfo?.salon_name || "the salon";
   }
+exports.getSalonName = getSalonName;
 
 exports.getAvailableBarbersAndSlots = async (req, res) => {
   try {
@@ -390,4 +391,3 @@ exports.deleteBlockedTimeSlot = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
