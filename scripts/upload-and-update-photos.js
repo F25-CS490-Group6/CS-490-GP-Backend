@@ -15,16 +15,16 @@ const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'stygo-salon-photos';
 
 // Mapping of photo files to salon IDs
 const SALON_MAPPING = [
-  { file: 'salon1.jpg', salonId: 33, name: "Éclat Elite Spa & Salon" },
-  { file: 'salon2.jpg', salonId: 34, name: "Opalessence Spa Boutique" },
-  { file: 'salon3.jpg', salonId: 35, name: "Pearl Esthetics & Atelier" },
-  { file: 'salon4.jpg', salonId: 36, name: "The Atelier Salon & Spa" },
-  { file: 'salon5.jpg', salonId: 37, name: "Luxe Noir Beauty Lounge" },
-  { file: 'salon6.jpg', salonId: 38, name: "Serenity Suites Spa & Salon" },
-  { file: 'salon7.jpg', salonId: 39, name: "Imperial Beauty Gallery" },
-  { file: 'salon8.jpg', salonId: 40, name: "Velvet & Co. Salon" },
-  { file: 'salon9.jpg', salonId: 41, name: "Maison de Beauté" },
-  { file: 'salon10.jpg', salonId: 42, name: "Diamond Lux Salon & Spa" }
+  { file: 'salon1.png', salonId: 33, name: "Éclat Elite Spa & Salon" },
+  { file: 'salon2.png', salonId: 34, name: "Opalessence Spa Boutique" },
+  { file: 'salon3.png', salonId: 35, name: "Pearl Esthetics & Atelier" },
+  { file: 'salon4.png', salonId: 36, name: "The Atelier Salon & Spa" },
+  { file: 'salon5.png', salonId: 37, name: "Luxe Noir Beauty Lounge" },
+  { file: 'salon6.png', salonId: 38, name: "Serenity Suites Spa & Salon" },
+  { file: 'salon7.png', salonId: 39, name: "Imperial Beauty Gallery" },
+  { file: 'salon8.png', salonId: 40, name: "Velvet & Co. Salon" },
+  { file: 'salon9.png', salonId: 41, name: "Maison de Beauté" },
+  { file: 'salon10.png', salonId: 42, name: "Diamond Lux Salon & Spa" }
 ];
 
 async function uploadToS3(filePath, fileName) {

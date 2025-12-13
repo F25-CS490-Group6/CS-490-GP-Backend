@@ -42,7 +42,8 @@ const LUXURY_SALONS = [
       phone: "+12125557788",
       email: "concierge@eclatelite.com",
       description: "Manhattan's most prestigious destination for luxury beauty treatments. Featuring private VIP suites, champagne service, and world-class stylists trained in Paris and Milan.",
-      website: "https://eclatelite.com"
+      website: "https://eclatelite.com",
+      profile_picture: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1200&q=85"
     },
     businessHours: {
       Monday: { enabled: true, start: "08:00", end: "21:00" },
@@ -80,7 +81,8 @@ const LUXURY_SALONS = [
       phone: "+13125559900",
       email: "reservations@opalessencespa.com",
       description: "Chicago's most sophisticated beauty destination on the Magnificent Mile. Contemporary elegance meets timeless luxury.",
-      website: "https://opalessencespa.com"
+      website: "https://opalessencespa.com",
+      profile_picture: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1200&q=85"
     },
     businessHours: {
       Monday: { enabled: true, start: "09:00", end: "20:00" },
@@ -116,7 +118,8 @@ const LUXURY_SALONS = [
       phone: "+14155553344",
       email: "hello@pearlesthetics.com",
       description: "San Francisco's hidden gem in Pacific Heights. European techniques, organic treatments, and modern luxury.",
-      website: "https://pearlesthetics.com"
+      website: "https://pearlesthetics.com",
+      profile_picture: "https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?w=1200&q=85"
     },
     businessHours: {
       Monday: { enabled: false, start: "09:00", end: "18:00" },
@@ -152,7 +155,8 @@ const LUXURY_SALONS = [
       phone: "+16172228899",
       email: "contact@theaterliersalon.com",
       description: "Boston's premier luxury salon on historic Newbury Street. Traditional craftsmanship meets contemporary innovation.",
-      website: "https://theaterliersalon.com"
+      website: "https://theaterliersalon.com",
+      profile_picture: "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=1200&q=85"
     },
     businessHours: {
       Monday: { enabled: true, start: "09:00", end: "19:00" },
@@ -187,7 +191,8 @@ const LUXURY_SALONS = [
       phone: "+15122667788",
       email: "info@luxenoirbeauty.com",
       description: "Austin's most sophisticated beauty sanctuary. Modern elegance with dramatic edge. Bold color and fashion-forward cuts.",
-      website: "https://luxenoirbeauty.com"
+      website: "https://luxenoirbeauty.com",
+      profile_picture: "https://images.unsplash.com/photo-1562322140-8baeececf3df?w=1200&q=85"
     },
     businessHours: {
       Monday: { enabled: true, start: "10:00", end: "20:00" },
@@ -222,7 +227,8 @@ const LUXURY_SALONS = [
       phone: "+17026665544",
       email: "reservations@serenitysuites.com",
       description: "Las Vegas Strip's most tranquil luxury escape. Award-winning spa and salon offering the finest beauty services.",
-      website: "https://serenitysuites.com"
+      website: "https://serenitysuites.com",
+      profile_picture: "https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=1200&q=85"
     },
     businessHours: {
       Monday: { enabled: true, start: "08:00", end: "22:00" },
@@ -257,7 +263,8 @@ const LUXURY_SALONS = [
       phone: "+12025558877",
       email: "concierge@imperialbeauty.com",
       description: "Washington DC's most prestigious beauty destination. Regal elegance meets modern sophistication.",
-      website: "https://imperialbeauty.com"
+      website: "https://imperialbeauty.com",
+      profile_picture: "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?w=1200&q=85"
     },
     businessHours: {
       Monday: { enabled: true, start: "08:00", end: "20:00" },
@@ -292,7 +299,8 @@ const LUXURY_SALONS = [
       phone: "+15035554433",
       email: "hello@velvetsalon.com",
       description: "Portland's most refined beauty experience in Pearl District. Artisan craftsmanship meets sustainable luxury.",
-      website: "https://velvetsalon.com"
+      website: "https://velvetsalon.com",
+      profile_picture: "https://images.unsplash.com/photo-1596704017254-9b121068ec31?w=1200&q=85"
     },
     businessHours: {
       Monday: { enabled: false, start: "09:00", end: "18:00" },
@@ -327,7 +335,8 @@ const LUXURY_SALONS = [
       phone: "+12145559988",
       email: "reservations@maisondebeaute.com",
       description: "Dallas' most exquisite French-inspired beauty house. European elegance in Highland Park.",
-      website: "https://maisondebeaute.com"
+      website: "https://maisondebeaute.com",
+      profile_picture: "https://images.unsplash.com/photo-1559599238-1c999946dd90?w=1200&q=85"
     },
     businessHours: {
       Monday: { enabled: true, start: "09:00", end: "19:00" },
@@ -362,7 +371,8 @@ const LUXURY_SALONS = [
       phone: "+19175558888",
       email: "info@diamondluxsalon.com",
       description: "Upper East Side's crown jewel of beauty. Platinum service, diamond-level care, unmatched luxury in every treatment.",
-      website: "https://diamondluxsalon.com"
+      website: "https://diamondluxsalon.com",
+      profile_picture: "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=1200&q=85"
     },
     businessHours: {
       Monday: { enabled: true, start: "08:00", end: "20:00" },
@@ -420,7 +430,8 @@ async function signupOwner(ownerData, salonData) {
       businessZip: salonData.zip,
       businessCountry: salonData.country,
       businessWebsite: salonData.website,
-      description: salonData.description
+      description: salonData.description,
+      profile_picture: salonData.profile_picture
     });
     
     return response.data;
@@ -458,7 +469,8 @@ async function createSalon(token, salonData) {
       phone: salonData.phone,
       email: salonData.email,
       description: salonData.description,
-      website: salonData.website
+      website: salonData.website,
+      profile_picture: salonData.profile_picture
     },
     {
       headers: { Authorization: `Bearer ${token}` }
