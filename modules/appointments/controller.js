@@ -303,8 +303,25 @@ exports.createAppointment = async (req, res) => {
       [resolvedSalonId]
     );
 
-    // Don't notify customer yet - they'll be notified when appointment is confirmed after payment
-    // Customer notification is sent in payments/service.js after successful payment
+    // Send in-app notification to customer about successful booking
+    try {
+      const formattedDate = formatAppointmentDate(finalScheduledTime);
+      const salonName = getSalonName(salonInfo);
+      const customerMessage = `Your appointment has been booked at ${salonName} on ${formattedDate}. We look forward to seeing you!`;
+      
+      await notificationService.createNotification(
+        userId,
+        "appointment",
+        customerMessage
+      );
+      console.log("Customer booking notification sent successfully");
+    } catch (customerNotificationError) {
+      // Log error but don't fail appointment creation
+      console.error(
+        "Error creating customer booking notification:",
+        customerNotificationError
+      );
+    }
 
     // Send notification to salon owner about new appointment
     // Don't notify owner if they created it themselves
